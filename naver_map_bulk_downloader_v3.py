@@ -193,27 +193,46 @@ class NaverMapBulkDownloaderV3:
             self.driver.get(url)
             time.sleep(5)  # 충분한 로딩 시간
             
-            # 페이지 소스 확인 (디버깅용)
-            page_source = self.driver.page_source
-            if '사진' in page_source:
-                print(f"   ✅ '사진' 텍스트가 페이지에 존재함")
+            # 먼저 메인 페이지에서 사진 탭 찾기 시도
+            print(f"   🔍 메인 페이지에서 사진 탭 찾는 중...")
+            if self.find_and_click_photo_tab():
+                print("   ✅ 메인 페이지에서 사진 탭 클릭 성공!")
             else:
-                print(f"   ⚠️  '사진' 텍스트를 페이지에서 찾을 수 없음")
-            
-            # iframe이 있는지 확인
-            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-            if iframes:
-                print(f"   🔍 {len(iframes)}개의 iframe 발견, 첫 번째로 전환 중...")
-                self.driver.switch_to.frame(iframes[0])
-                time.sleep(2)
-            
-            # 사진 탭 찾기 및 클릭 - 다양한 방법 시도
-            if not self.find_and_click_photo_tab():
-                print("   ⚠️  사진 탭을 찾을 수 없음")
-                # iframe에서 나오기
+                # 메인 페이지에서 실패하면 iframe 확인
+                print(f"   ⚠️  메인 페이지에서 사진 탭을 찾지 못함")
+                print(f"   🔍 iframe 확인 중...")
+                
+                iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
                 if iframes:
-                    self.driver.switch_to.default_content()
-                return [], {}
+                    print(f"   📦 {len(iframes)}개의 iframe 발견")
+                    
+                    # 각 iframe을 순회하면서 사진 탭 찾기
+                    found_in_iframe = False
+                    for i, iframe in enumerate(iframes):
+                        try:
+                            print(f"      🔍 iframe [{i+1}] 확인 중...")
+                            self.driver.switch_to.frame(iframe)
+                            time.sleep(1)
+                            
+                            # iframe 내부에서 사진 탭 찾기
+                            if self.find_and_click_photo_tab():
+                                print(f"      ✅ iframe [{i+1}]에서 사진 탭 찾음!")
+                                found_in_iframe = True
+                                break
+                            else:
+                                # 이 iframe에 없으면 메인으로 돌아가기
+                                self.driver.switch_to.default_content()
+                        except Exception as e:
+                            print(f"      ⚠️  iframe [{i+1}] 오류: {e}")
+                            self.driver.switch_to.default_content()
+                            continue
+                    
+                    if not found_in_iframe:
+                        print("   ⚠️  모든 iframe에서 사진 탭을 찾지 못함")
+                        return [], {}
+                else:
+                    print("   ⚠️  iframe도 없고 사진 탭도 찾지 못함")
+                    return [], {}
             
             print("   ✅ 사진 탭 클릭 성공!")
             time.sleep(4)  # 사진 로드 대기
@@ -245,16 +264,18 @@ class NaverMapBulkDownloaderV3:
             
             print(f"   ✅ 총 {len(photos)}개 사진 URL 추출 완료")
             
-            # iframe에서 나오기
-            if iframes:
+            # iframe에서 나오기 (안전하게)
+            try:
                 self.driver.switch_to.default_content()
+            except:
+                pass
             
             return photos, photo_categories
             
         except Exception as e:
             print(f"   ❌ 사진 추출 오류: {e}")
             traceback.print_exc()
-            # iframe에서 나오기
+            # iframe에서 안전하게 나오기
             try:
                 self.driver.switch_to.default_content()
             except:
