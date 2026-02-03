@@ -98,7 +98,7 @@ class NaverPlaceCapturer:
         return company_folder
         
     def capture_naver_place(self, region, region_detail, store_name, save_path):
-        """네이버 플레이스 캡처 - 플레이스 카드 영역만"""
+        """네이버 플레이스 캡처 - 플레이스 카드 영역만 (안정화)"""
         try:
             # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
             search_query = f"{region} {region_detail} {store_name} 세신"
@@ -106,48 +106,96 @@ class NaverPlaceCapturer:
             print(f"   🔍 검색: {search_query}")
             
             self.driver.get(search_url)
-            time.sleep(2)  # 페이지 로딩 대기
+            time.sleep(3)  # 페이지 로딩 충분히 대기
             
-            # 플레이스 카드 영역 찾기
+            # iframe 찾기 및 전환
             try:
-                # 다양한 선택자로 플레이스 영역 찾기
-                selectors = [
-                    "div.place_didgraph",  # 플레이스 상세 정보
-                    "div.place_section",   # 플레이스 섹션
-                    "div.api_subject_bx",  # API 주제 박스
-                    "div.place_fixed_maintab",  # 플레이스 메인 탭
-                ]
+                iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                print(f"   🔍 {len(iframes)}개 iframe 발견")
                 
-                place_element = None
-                for selector in selectors:
+                place_captured = False
+                
+                # 각 iframe 확인
+                for idx, iframe in enumerate(iframes):
                     try:
-                        elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                        if elements:
-                            # 가장 큰 요소 선택
-                            place_element = max(elements, key=lambda e: e.size['height'] * e.size['width'])
-                            print(f"   ✅ 플레이스 영역 발견: {selector}")
+                        self.driver.switch_to.frame(iframe)
+                        time.sleep(1)
+                        
+                        # iframe 내부에서 플레이스 영역 찾기
+                        selectors = [
+                            "div.place_didgraph",
+                            "div.place_section_content",
+                            "div.place_detail_wrapper",
+                            "div.YouOG",  # 플레이스 상세
+                            "#app-root",  # 플레이스 앱 루트
+                        ]
+                        
+                        for selector in selectors:
+                            try:
+                                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                                if elements:
+                                    # 가장 큰 요소 선택
+                                    place_element = max(elements, key=lambda e: e.size['height'] * e.size['width'])
+                                    
+                                    # 크기 확인 (너무 작으면 스킵)
+                                    if place_element.size['height'] > 200 and place_element.size['width'] > 200:
+                                        screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
+                                        place_element.screenshot(screenshot_path)
+                                        print(f"   ✅ iframe [{idx}]에서 플레이스 캡처: {selector}")
+                                        place_captured = True
+                                        break
+                            except:
+                                continue
+                        
+                        # 캡처 성공하면 루프 종료
+                        if place_captured:
+                            self.driver.switch_to.default_content()
                             break
-                    except:
+                        
+                        # 다음 iframe으로
+                        self.driver.switch_to.default_content()
+                        
+                    except Exception as e:
+                        self.driver.switch_to.default_content()
                         continue
                 
-                screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
+                # iframe에서 못 찾으면 메인 페이지에서 시도
+                if not place_captured:
+                    print(f"   ⚠️  iframe에서 못 찾음 - 메인 페이지에서 시도")
+                    
+                    selectors = [
+                        "div.place_didgraph",
+                        "div.api_subject_bx",
+                        "div.place_section",
+                    ]
+                    
+                    for selector in selectors:
+                        try:
+                            elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                            if elements:
+                                place_element = max(elements, key=lambda e: e.size['height'] * e.size['width'])
+                                if place_element.size['height'] > 200:
+                                    screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
+                                    place_element.screenshot(screenshot_path)
+                                    print(f"   ✅ 메인 페이지에서 플레이스 캡처: {selector}")
+                                    place_captured = True
+                                    break
+                        except:
+                            continue
                 
-                if place_element:
-                    # 플레이스 영역만 캡처
-                    place_element.screenshot(screenshot_path)
-                    print(f"   📸 플레이스 영역만 캡처")
-                else:
-                    # 플레이스 영역을 못 찾으면 전체 화면 캡처 후 크롭
+                # 그래도 못 찾으면 크롭 방식
+                if not place_captured:
                     print(f"   ⚠️  플레이스 영역 미발견 - 전체 화면 캡처 후 크롭")
                     temp_path = os.path.join(save_path, "temp_full.png")
                     self.driver.save_screenshot(temp_path)
                     
-                    # 이미지 열기 및 크롭 (상단 헤더/검색바 제거)
+                    # 이미지 열기 및 크롭
                     img = Image.open(temp_path)
                     width, height = img.size
                     
-                    # 상단 200px 제거, 하단 200px 제거 (검색바와 푸터 제거)
-                    cropped = img.crop((0, 200, width, height - 200))
+                    # 상단 150px 제거, 하단 150px 제거
+                    cropped = img.crop((0, 150, width, height - 150))
+                    screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
                     cropped.save(screenshot_path)
                     
                     # 임시 파일 삭제
@@ -168,7 +216,8 @@ class NaverPlaceCapturer:
                     return False
                     
             except Exception as e:
-                print(f"   ❌ 플레이스 영역 찾기 실패: {e}")
+                print(f"   ❌ iframe 처리 실패: {e}")
+                self.driver.switch_to.default_content()
                 return False
                 
         except Exception as e:
