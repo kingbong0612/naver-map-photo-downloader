@@ -175,47 +175,75 @@ class NaverMapPriceExtractor:
                 self.stats['no_price'] += 1
                 return False
             
-            # 가격표 갤러리 뷰어에서 이미지 추출 (V4 방식 - 직접 URL 추출)
-            print("   📋 가격표 이미지 로딩 중...")
-            time.sleep(3)
+            # 가격표 이미지 페이지 로딩 대기
+            print("   📋 가격표 이미지 페이지 로딩 중...")
+            time.sleep(5)  # 로딩 대기 시간 증가
             
             # 스크롤하여 모든 이미지 로드
+            print("   🔄 스크롤하여 이미지 로딩...")
             self.scroll_photo_area()
+            time.sleep(2)  # 스크롤 후 추가 대기
             
             price_images = []
             
             # 모든 이미지 요소에서 직접 URL 추출
             all_images = self.driver.find_elements(By.TAG_NAME, "img")
+            print(f"   🔍 총 {len(all_images)}개 이미지 요소 발견")
             
             for img in all_images:
                 try:
                     src = img.get_attribute('src')
+                    size = img.size
                     
-                    # 네이버 CDN 이미지만 추출
+                    # 네이버 CDN 이미지만 추출 + 크기 필터 (너무 작은 아이콘 제외)
                     if src and 'phinf.pstatic.net' in src:
-                        # 원본 크기로 변환
-                        original_src = self.convert_to_original_size(src)
-                        
-                        if original_src not in price_images:
-                            price_images.append(original_src)
+                        # 가격표는 일반적으로 큰 이미지 (최소 200px)
+                        if size['width'] >= 150 or size['height'] >= 150:
+                            # 원본 크기로 변환
+                            original_src = self.convert_to_original_size(src)
+                            
+                            if original_src not in price_images:
+                                price_images.append(original_src)
+                                print(f"      ├── 이미지 발견: {size['width']}x{size['height']}px")
                             
                 except:
                     continue
             
             # data-src 속성도 확인
             all_images_with_data_src = self.driver.find_elements(By.XPATH, "//*[@data-src]")
+            if all_images_with_data_src:
+                print(f"   🔍 data-src 속성 확인: {len(all_images_with_data_src)}개")
+                
             for img in all_images_with_data_src:
                 try:
                     src = img.get_attribute('data-src')
                     if src and 'phinf.pstatic.net' in src:
-                        original_src = self.convert_to_original_size(src)
-                        if original_src not in price_images:
-                            price_images.append(original_src)
+                        try:
+                            size = img.size
+                            if size['width'] >= 150 or size['height'] >= 150:
+                                original_src = self.convert_to_original_size(src)
+                                if original_src not in price_images:
+                                    price_images.append(original_src)
+                                    print(f"      ├── data-src 이미지: {size['width']}x{size['height']}px")
+                        except:
+                            # 크기 확인 실패해도 추가 시도
+                            original_src = self.convert_to_original_size(src)
+                            if original_src not in price_images:
+                                price_images.append(original_src)
                 except:
                     continue
             
             if not price_images:
                 print("   ❌ 가격표 이미지를 찾을 수 없음")
+                print("   💡 디버깅: 페이지 소스 일부 출력")
+                try:
+                    page_text = self.driver.page_source[:2000]
+                    if '가격표' in page_text:
+                        print("      - 페이지에 '가격표' 텍스트 존재")
+                    if 'phinf.pstatic.net' in page_text:
+                        print("      - 페이지에 네이버 CDN 이미지 존재")
+                except:
+                    pass
                 return False
             
             print(f"   ✅ {len(price_images)}개 가격표 이미지 발견")
