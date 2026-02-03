@@ -36,6 +36,9 @@ class NaverPlaceCapturer:
             'no_folder': 0
         }
         
+        # 실패한 매장 기록
+        self.failed_stores = []
+        
     def setup_driver(self):
         """Chrome 드라이버 설정"""
         chrome_options = Options()
@@ -94,12 +97,13 @@ class NaverPlaceCapturer:
             
         return company_folder
         
-    def capture_naver_place(self, store_name, save_path):
+    def capture_naver_place(self, region, region_detail, store_name, save_path):
         """네이버 플레이스 캡처"""
         try:
-            # 네이버 검색
-            search_url = f"https://search.naver.com/search.naver?query={store_name}"
-            print(f"   🔍 네이버 검색: {store_name}")
+            # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
+            search_query = f"{region} {region_detail} {store_name} 세신"
+            search_url = f"https://search.naver.com/search.naver?query={search_query}"
+            print(f"   🔍 검색어: {search_query}")
             self.driver.get(search_url)
             time.sleep(3)  # 페이지 로딩 대기
             
@@ -208,10 +212,17 @@ class NaverPlaceCapturer:
                 return
             
             # 네이버 플레이스 캡처
-            if self.capture_naver_place(store_name, company_folder):
+            if self.capture_naver_place(region, region_detail, store_name, company_folder):
                 self.stats['success'] += 1
             else:
                 self.stats['failed'] += 1
+                # 실패한 매장 기록
+                self.failed_stores.append({
+                    '지역': region,
+                    '지역상세': region_detail,
+                    '매장명': store_name,
+                    '검색어': f"{region} {region_detail} {store_name} 세신"
+                })
                 
         except Exception as e:
             print(f"   ❌ 처리 실패: {e}")
@@ -252,6 +263,10 @@ class NaverPlaceCapturer:
                 
         elapsed_time = time.time() - start_time
         self.print_final_stats(elapsed_time)
+        
+        # 실패한 매장 목록 저장
+        if self.failed_stores:
+            self.save_failed_stores()
     
     def print_final_stats(self, elapsed_time):
         """최종 통계 출력"""
@@ -269,6 +284,41 @@ class NaverPlaceCapturer:
         if self.stats['no_folder'] > 0:
             print("💡 팁: 폴더가 없는 매장은 먼저 V4 다운로더를 실행하세요")
             print("   실행_V4.bat → 사진 다운로드 → 캡처 도구 실행\n")
+    
+    def save_failed_stores(self):
+        """캡처 실패한 매장 목록을 텍스트 파일로 저장"""
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            failed_file = os.path.join(script_dir, "캡처_실패_목록.txt")
+            
+            with open(failed_file, 'w', encoding='utf-8') as f:
+                f.write("="*60 + "\n")
+                f.write("네이버 플레이스 캡처 실패 목록\n")
+                f.write("="*60 + "\n")
+                f.write(f"생성 날짜: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M:%S')}\n")
+                f.write(f"실패 건수: {len(self.failed_stores)}개\n")
+                f.write("="*60 + "\n\n")
+                
+                for idx, store in enumerate(self.failed_stores, 1):
+                    f.write(f"[{idx}] {store['지역']} > {store['지역상세']} > {store['매장명']}\n")
+                    f.write(f"    검색어: {store['검색어']}\n")
+                    f.write(f"    검색 URL: https://search.naver.com/search.naver?query={store['검색어']}\n")
+                    f.write("\n")
+                
+                f.write("="*60 + "\n")
+                f.write("💡 수동 캡처 방법:\n")
+                f.write("1. 위의 검색 URL을 클릭하여 네이버에서 검색\n")
+                f.write("2. 플레이스 카드 화면을 캡처 (Windows: Win + Shift + S)\n")
+                f.write("3. downloads/지역/지역상세/매장명/업체/ 폴더에 저장\n")
+                f.write("4. 파일명: 네이버플레이스_캡처.png\n")
+                f.write("="*60 + "\n")
+            
+            print(f"\n📝 실패 목록 저장: {failed_file}")
+            print(f"   {len(self.failed_stores)}개 매장의 정보가 저장되었습니다.")
+            print(f"   파일을 열어서 수동으로 캡처하세요.\n")
+            
+        except Exception as e:
+            print(f"⚠️  실패 목록 저장 오류: {e}")
 
 def main():
     if len(sys.argv) < 2:
