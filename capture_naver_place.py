@@ -107,6 +107,51 @@ class NaverPlaceCapturer:
             self.driver.get(search_url)
             time.sleep(3)  # 페이지 로딩 대기
             
+            # 플레이스 링크 찾기 및 클릭
+            place_link_found = False
+            
+            # 방법 1: 플레이스 링크 찾기 (place.naver.com)
+            try:
+                links = self.driver.find_elements(By.TAG_NAME, "a")
+                for link in links:
+                    href = link.get_attribute('href')
+                    if href and 'place.naver.com' in href:
+                        print(f"   ✅ 플레이스 링크 발견")
+                        # 새 탭으로 열기 대신 현재 탭에서 이동
+                        self.driver.get(href)
+                        time.sleep(3)
+                        place_link_found = True
+                        break
+            except:
+                pass
+            
+            # 방법 2: '상세보기' 버튼 클릭
+            if not place_link_found:
+                try:
+                    detail_buttons = self.driver.find_elements(By.XPATH, "//*[contains(text(), '상세보기')]")
+                    if detail_buttons:
+                        print(f"   ✅ '상세보기' 버튼 클릭")
+                        detail_buttons[0].click()
+                        time.sleep(3)
+                        place_link_found = True
+                except:
+                    pass
+            
+            # 방법 3: 첫 번째 플레이스 결과 클릭
+            if not place_link_found:
+                try:
+                    place_items = self.driver.find_elements(By.CSS_SELECTOR, "[class*='place'], [class*='biz']")
+                    if place_items:
+                        print(f"   ✅ 플레이스 항목 클릭")
+                        place_items[0].click()
+                        time.sleep(3)
+                        place_link_found = True
+                except:
+                    pass
+            
+            if not place_link_found:
+                print("   ⚠️  플레이스 링크를 찾을 수 없음 - 검색 결과 페이지에서 캡처")
+            
             # 플레이스 카드 찾기
             place_card = None
             
