@@ -104,69 +104,97 @@ class NaverMapPriceExtractor:
         return company_folder
         
     def extract_price_table(self, naver_map_url, save_path):
-        """네이버 지도에서 가격표 추출 (V4 방식 적용)"""
+        """네이버 지도에서 가격표 추출 - 홈 탭에서 '가격표 이미지로 보기' 클릭"""
         try:
             print(f"   🗺️  네이버 지도 접속 중...")
             self.driver.get(naver_map_url)
             time.sleep(4)  # 페이지 로딩 대기
             
             # iframe 확인 및 전환
+            target_iframe_index = None
             iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+            
             if iframes:
                 print(f"   🔍 {len(iframes)}개 iframe 발견")
+                
+                # 홈 탭(메인 정보)이 있는 iframe 찾기
                 for i in range(len(iframes)-1, -1, -1):  # 역순으로 확인
                     try:
                         self.driver.switch_to.default_content()
                         self.driver.switch_to.frame(iframes[i])
                         
-                        # '가격표' 텍스트가 있는지 확인
                         page_text = self.driver.page_source
-                        if '가격표' in page_text:
-                            print(f"   ✅ iframe [{i+1}]에서 가격표 메뉴 발견")
-                            break
+                        
+                        # 홈 탭의 특징: '가격표 이미지로 보기' 텍스트가 있음
+                        # 사진 탭이 아닌 홈 탭을 찾아야 함
+                        if '가격표' in page_text and '이미지로 보기' in page_text:
+                            # 사진 탭이 아닌지 확인 (사진 탭에는 '업체사진', '방문자' 등이 있음)
+                            is_photo_tab = any(keyword in page_text for keyword in ['업체사진', '방문자', '클립'])
+                            
+                            if not is_photo_tab:
+                                print(f"   ✅ iframe [{i+1}]에서 홈 탭 발견 (가격표 링크 있음)")
+                                target_iframe_index = i
+                                break
+                            else:
+                                print(f"   ⏭️  iframe [{i+1}]은 사진 탭 - 건너뜀")
+                                self.driver.switch_to.default_content()
+                                continue
                     except:
+                        self.driver.switch_to.default_content()
                         continue
             
-            # 현재 URL 저장 (클릭 후 변경 확인용)
-            current_url = self.driver.current_url
-            current_page_text = self.driver.page_source[:1000]
+            if target_iframe_index is None:
+                print("   ⚠️  홈 탭(가격표 링크가 있는 iframe)을 찾을 수 없음")
+                
+                # 메인 페이지에서 시도
+                self.driver.switch_to.default_content()
+                print("   🔄 메인 페이지에서 가격표 링크 찾기 시도...")
             
-            # '가격표 이미지로 보기' 버튼 찾기 및 클릭
+            # '가격표 이미지로 보기' 하이퍼링크 찾기 및 클릭
             price_button_found = False
             
-            # 방법 1: 정확한 텍스트 매칭
+            # 방법 1: '가격표 이미지로 보기' 전체 텍스트 매칭
             try:
-                buttons = self.driver.find_elements(By.XPATH, "//*[contains(text(), '가격표')]")
-                for btn in buttons:
-                    text = btn.text.strip()
-                    if '이미지' in text or '보기' in text or text == '가격표':
-                        print(f"   ✅ 가격표 버튼 발견: '{text}'")
+                elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), '가격표')]")
+                for elem in elements:
+                    text = elem.text.strip()
+                    # '가격표 이미지로 보기' 또는 '가격표'만 있는 링크
+                    if ('이미지로' in text and '보기' in text) or text == '가격표 이미지로 보기':
+                        print(f"   ✅ 가격표 링크 발견: '{text}'")
                         try:
-                            self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                            # 스크롤하여 보이게 하기
+                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
                             time.sleep(0.5)
-                            self.driver.execute_script("arguments[0].click();", btn)
-                            time.sleep(3)  # 페이지 전환 대기
+                            
+                            # 클릭
+                            self.driver.execute_script("arguments[0].click();", elem)
+                            time.sleep(3)  # 가격표 페이지 로딩 대기
                             price_button_found = True
+                            print(f"   ✅ 가격표 링크 클릭 성공")
                             break
-                        except:
+                        except Exception as e:
+                            print(f"   ⚠️  클릭 실패, 재시도: {str(e)[:50]}")
                             try:
-                                parent = btn.find_element(By.XPATH, "..")
+                                # 부모 요소 클릭 시도
+                                parent = elem.find_element(By.XPATH, "..")
                                 self.driver.execute_script("arguments[0].click();", parent)
                                 time.sleep(3)
                                 price_button_found = True
+                                print(f"   ✅ 부모 요소 클릭 성공")
                                 break
                             except:
                                 continue
-            except:
-                pass
+            except Exception as e:
+                print(f"   ⚠️  가격표 링크 검색 실패: {str(e)[:50]}")
             
-            # 방법 2: 링크로 찾기
+            # 방법 2: <a> 태그에서 '가격표' 포함된 링크 찾기
             if not price_button_found:
                 try:
                     links = self.driver.find_elements(By.TAG_NAME, "a")
                     for link in links:
-                        if '가격표' in link.text:
-                            print(f"   ✅ 가격표 링크 발견")
+                        link_text = link.text.strip()
+                        if '가격표' in link_text and ('이미지' in link_text or '보기' in link_text):
+                            print(f"   ✅ <a> 태그 가격표 링크 발견: '{link_text}'")
                             self.driver.execute_script("arguments[0].click();", link)
                             time.sleep(3)
                             price_button_found = True
@@ -175,26 +203,10 @@ class NaverMapPriceExtractor:
                     pass
             
             if not price_button_found:
-                print("   ⚠️  가격표 버튼을 찾을 수 없음")
+                print("   ⚠️  '가격표 이미지로 보기' 링크를 찾을 수 없음")
+                print("   💡 이 매장에는 가격표가 등록되지 않았을 수 있습니다.")
                 self.stats['no_price'] += 1
                 return False
-            
-            # 페이지 전환 확인
-            time.sleep(2)
-            new_url = self.driver.current_url
-            new_page_text = self.driver.page_source[:1000]
-            
-            # URL이 변경되었거나 페이지 내용이 크게 바뀌었는지 확인
-            url_changed = (current_url != new_url)
-            content_changed = (current_page_text != new_page_text)
-            
-            if url_changed:
-                print(f"   ✅ URL 변경 확인: 가격표 페이지로 이동")
-            elif content_changed:
-                print(f"   ✅ 페이지 내용 변경 확인")
-            else:
-                print(f"   ⚠️  페이지 전환이 감지되지 않음 - 가격표가 없을 수 있음")
-                # 그래도 계속 시도 (iframe 내부에서 변경될 수 있음)
             
             # 가격표 이미지 페이지 로딩 대기
             print("   📋 가격표 이미지 페이지 로딩 중...")
