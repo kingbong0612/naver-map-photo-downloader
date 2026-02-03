@@ -175,71 +175,50 @@ class NaverMapPriceExtractor:
                 self.stats['no_price'] += 1
                 return False
             
-            # 가격표 갤러리 뷰어에서 이미지 추출 (V4 방식)
-            print("   📋 가격표 썸네일 로딩 중...")
-            time.sleep(2)
+            # 가격표 갤러리 뷰어에서 이미지 추출 (V4 방식 - 직접 URL 추출)
+            print("   📋 가격표 이미지 로딩 중...")
+            time.sleep(3)
             
-            # 스크롤하여 모든 썸네일 로드
+            # 스크롤하여 모든 이미지 로드
             self.scroll_photo_area()
             
             price_images = []
             
-            # 썸네일 찾기
-            thumbnails = self.driver.find_elements(By.TAG_NAME, "img")
-            clickable_thumbnails = []
+            # 모든 이미지 요소에서 직접 URL 추출
+            all_images = self.driver.find_elements(By.TAG_NAME, "img")
             
-            for thumb in thumbnails:
+            for img in all_images:
                 try:
-                    src = thumb.get_attribute('src')
-                    # 네이버 CDN 썸네일만 선택
+                    src = img.get_attribute('src')
+                    
+                    # 네이버 CDN 이미지만 추출
                     if src and 'phinf.pstatic.net' in src:
-                        clickable_thumbnails.append(thumb)
+                        # 원본 크기로 변환
+                        original_src = self.convert_to_original_size(src)
+                        
+                        if original_src not in price_images:
+                            price_images.append(original_src)
+                            
                 except:
                     continue
             
-            if not clickable_thumbnails:
-                print("   ❌ 가격표 이미지를 찾을 수 없음")
-                return False
-            
-            print(f"   📸 {len(clickable_thumbnails)}개 가격표 썸네일 발견")
-            
-            # 각 썸네일 클릭하여 원본 이미지 URL 추출
-            for idx, thumb in enumerate(clickable_thumbnails, 1):
+            # data-src 속성도 확인
+            all_images_with_data_src = self.driver.find_elements(By.XPATH, "//*[@data-src]")
+            for img in all_images_with_data_src:
                 try:
-                    # 썸네일 클릭
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", thumb)
-                    time.sleep(0.3)
-                    self.driver.execute_script("arguments[0].click();", thumb)
-                    time.sleep(1)  # 원본 이미지 로딩 대기
-                    
-                    # 확대된 원본 이미지 찾기
-                    large_images = self.driver.find_elements(By.TAG_NAME, "img")
-                    for img in large_images:
-                        try:
-                            src = img.get_attribute('src')
-                            size = img.size
-                            
-                            # 큰 이미지만 선택 (원본)
-                            if src and 'phinf.pstatic.net' in src:
-                                if size['width'] > 400 or size['height'] > 400:
-                                    # 원본 크기로 변환
-                                    original_src = self.convert_to_original_size(src)
-                                    if original_src not in price_images:
-                                        price_images.append(original_src)
-                                        print(f"      ├── {idx}/{len(clickable_thumbnails)} 원본 추출 완료")
-                                        break
-                        except:
-                            continue
-                    
-                except Exception as e:
-                    print(f"      ⚠️  {idx}번째 썸네일 처리 실패: {e}")
+                    src = img.get_attribute('data-src')
+                    if src and 'phinf.pstatic.net' in src:
+                        original_src = self.convert_to_original_size(src)
+                        if original_src not in price_images:
+                            price_images.append(original_src)
+                except:
                     continue
             
             if not price_images:
-                print("   ❌ 가격표 원본 이미지를 찾을 수 없음")
+                print("   ❌ 가격표 이미지를 찾을 수 없음")
                 return False
             
-            print(f"   ✅ {len(price_images)}개 가격표 원본 이미지 추출 완료")
+            print(f"   ✅ {len(price_images)}개 가격표 이미지 발견")
             
             # 이미지 다운로드
             print(f"   💾 다운로드 시작...")
