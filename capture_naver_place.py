@@ -101,7 +101,8 @@ class NaverPlaceCapturer:
         """네이버 플레이스 캡처 - 플레이스 카드만 정확히"""
         try:
             # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
-            search_query = f"{region} {region_detail} {store_name} 세신"
+            # 따옴표로 감싸서 검색어 변경 방지
+            search_query = f'"{region} {region_detail} {store_name}" 세신'
             search_url = f"https://search.naver.com/search.naver?query={search_query}"
             print(f"   🔍 검색: {search_query}")
             
