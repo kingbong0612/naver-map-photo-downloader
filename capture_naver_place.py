@@ -21,6 +21,7 @@ from selenium.webdriver.chrome.options import Options
 from PIL import Image
 import traceback
 from datetime import datetime
+from urllib.parse import quote
 
 class NaverPlaceCapturer:
     def __init__(self, excel_path, base_folder="downloads"):
@@ -109,7 +110,10 @@ class NaverPlaceCapturer:
             
             for idx, search_query in enumerate(search_queries):
                 try:
-                    search_url = f"https://search.naver.com/search.naver?query={search_query}"
+                    # URL 인코딩으로 검색어 정확하게 전달
+                    encoded_query = quote(search_query)
+                    search_url = f"https://search.naver.com/search.naver?query={encoded_query}"
+                    
                     if idx == 0:
                         print(f"   🔍 검색: {search_query}")
                     else:
