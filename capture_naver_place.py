@@ -98,7 +98,7 @@ class NaverPlaceCapturer:
         return company_folder
         
     def capture_naver_place(self, region, region_detail, store_name, save_path):
-        """네이버 플레이스 캡처 - 초고속 버전 (#loc-main-section-root만)"""
+        """네이버 플레이스 캡처 - 안정적 버전"""
         try:
             # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
             search_query = f"{region} {region_detail} {store_name} 세신"
@@ -107,12 +107,19 @@ class NaverPlaceCapturer:
             
             self.driver.get(search_url)
             
-            # #loc-main-section-root 요소가 나타날 때까지 명시적 대기
+            # #loc-main-section-root 요소가 나타날 때까지 대기
             try:
-                wait = WebDriverWait(self.driver, 10)  # 최대 10초 대기
+                wait = WebDriverWait(self.driver, 10)
                 place_element = wait.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root"))
                 )
+                
+                # 플레이스 내용이 로드될 때까지 추가 대기
+                # 지도와 상세 정보가 표시되길 기다림
+                time.sleep(3)
+                
+                # 다시 요소 찾기 (DOM이 업데이트되었을 수 있음)
+                place_element = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
                 
                 # 스크린샷 저장
                 screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
