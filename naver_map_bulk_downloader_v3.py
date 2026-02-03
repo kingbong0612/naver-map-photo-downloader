@@ -240,24 +240,24 @@ class NaverMapBulkDownloaderV3:
             # 카테고리 버튼 찾기 (업체, 클립, 방문자, 블로그)
             categories = self.find_photo_categories()
             
-            if categories:
-                print(f"   📂 발견된 카테고리: {', '.join(categories)}")
+            if categories and '업체' in categories:
+                print(f"   📂 '업체' 카테고리 발견")
                 
-                for category in categories:
-                    print(f"   🔍 '{category}' 카테고리 처리 중...")
-                    category_photos = self.extract_photos_from_category(category)
-                    if category_photos:
-                        photo_categories[category] = category_photos
-                        photos.extend(category_photos)
-                        print(f"      ✅ {len(category_photos)}개 발견")
-                    else:
-                        print(f"      ⚠️  사진 없음")
+                # 업체 카테고리만 처리
+                print(f"   🔍 '업체' 카테고리 처리 중...")
+                category_photos = self.extract_photos_from_category('업체')
+                if category_photos:
+                    photo_categories['업체'] = category_photos
+                    photos.extend(category_photos)
+                    print(f"      ✅ {len(category_photos)}개 발견")
+                else:
+                    print(f"      ⚠️  업체 사진 없음")
             else:
-                # 카테고리가 없으면 전체 사진 추출
-                print("   📸 카테고리 없이 전체 사진 추출 중...")
+                # 업체 카테고리가 없으면 전체 사진 추출
+                print("   📸 업체 카테고리를 찾을 수 없음 - 전체 사진 추출 중...")
                 photos = self.extract_all_visible_photos()
                 if photos:
-                    photo_categories['전체사진'] = photos
+                    photo_categories['업체'] = photos
             
             # 중복 제거
             photos = list(dict.fromkeys(photos))
@@ -392,12 +392,12 @@ class NaverMapBulkDownloaderV3:
         return False
     
     def find_photo_categories(self):
-        """사진 카테고리 버튼 찾기 (업체, 클립, 방문자, 블로그)"""
+        """사진 카테고리 버튼 찾기 - 업체만 찾기"""
         categories = []
         
         try:
-            # 카테고리 키워드
-            category_keywords = ['업체', '클립', '방문자', '블로그', '전체']
+            # 업체 카테고리만 찾기
+            category_keywords = ['업체']
             
             # 모든 버튼과 링크 찾기
             potential_buttons = self.driver.find_elements(By.XPATH, "//button | //a | //span[@role='button']")
@@ -410,10 +410,6 @@ class NaverMapBulkDownloaderV3:
                         print(f"      🏷️  카테고리 발견: {text}")
                 except:
                     continue
-            
-            # '전체' 제외
-            if '전체' in categories:
-                categories.remove('전체')
                     
             return categories
             
