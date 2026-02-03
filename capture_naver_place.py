@@ -152,17 +152,16 @@ class NaverPlaceCapturer:
             if not place_link_found:
                 print("   ⚠️  플레이스 링크를 찾을 수 없음 - 검색 결과 페이지에서 캡처")
             
-            # 플레이스 카드 찾기
+            # 플레이스 카드 찾기 (검색바 제외)
             place_card = None
             
-            # 방법 1: 플레이스 영역 CSS 선택자
+            # 방법 1: 플레이스 전용 CSS 선택자 (검색바 제외)
             place_selectors = [
-                ".place_section",  # 플레이스 섹션
-                ".place_detail_wrapper",  # 플레이스 상세
-                ".place_didyoumean",  # 플레이스 카드
-                "[class*='place']",  # place 포함 클래스
+                ".place_section._place_section",  # 플레이스 섹션 (가장 정확)
+                "div.place_section",  # 플레이스 섹션
+                ".place_detail_wrapper",  # 플레이스 상세 래퍼
+                "#_title",  # 플레이스 타이틀 영역
                 ".api_subject_bx",  # API 박스
-                ".bx._border"  # 테두리 박스
             ]
             
             for selector in place_selectors:
@@ -176,23 +175,43 @@ class NaverPlaceCapturer:
                 except:
                     continue
             
-            # 방법 2: XPath로 플레이스 영역 찾기
+            # 방법 2: '플레이스' 헤더가 있는 영역 찾기
             if not place_card:
                 try:
-                    place_card = self.driver.find_element(By.XPATH, "//div[contains(@class, 'place')]")
-                    print(f"   ✅ 플레이스 카드 발견 (XPath)")
+                    # '플레이스' 텍스트가 있는 요소 찾기
+                    place_headers = self.driver.find_elements(By.XPATH, "//span[text()='플레이스'] | //div[text()='플레이스']")
+                    if place_headers:
+                        # '플레이스' 헤더의 부모 컨테이너 찾기
+                        for header in place_headers:
+                            try:
+                                # 상위 요소로 올라가면서 플레이스 컨테이너 찾기
+                                parent = header
+                                for _ in range(5):  # 최대 5단계 상위
+                                    parent = parent.find_element(By.XPATH, "..")
+                                    # 충분히 큰 영역인지 확인
+                                    size = parent.size
+                                    if size['width'] > 300 and size['height'] > 400:
+                                        place_card = parent
+                                        print(f"   ✅ 플레이스 카드 발견 ('플레이스' 헤더 기준)")
+                                        break
+                                if place_card:
+                                    break
+                            except:
+                                continue
                 except:
                     pass
             
-            # 방법 3: 전체 페이지에서 "플레이스" 텍스트 있는 영역
+            # 방법 3: 지도 + 정보가 있는 큰 영역 찾기
             if not place_card:
                 try:
-                    place_elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), '플레이스')]")
-                    if place_elements:
-                        # 부모 요소 중 가장 큰 것
-                        parent = place_elements[0].find_element(By.XPATH, "../..")
-                        place_card = parent
-                        print(f"   ✅ 플레이스 영역 발견 (텍스트 기반)")
+                    # class에 'place'가 포함된 큰 요소들
+                    elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'place')]")
+                    if elements:
+                        # 높이가 400px 이상인 것만 (검색바 제외)
+                        large_elements = [e for e in elements if e.size['height'] > 400]
+                        if large_elements:
+                            place_card = large_elements[0]
+                            print(f"   ✅ 플레이스 카드 발견 (큰 영역 기준)")
                 except:
                     pass
             
