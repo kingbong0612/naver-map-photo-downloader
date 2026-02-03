@@ -100,55 +100,66 @@ class NaverPlaceCapturer:
     def capture_naver_place(self, region, region_detail, store_name, save_path):
         """네이버 플레이스 캡처 - 플레이스 카드만 정확히"""
         try:
-            # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
-            # 따옴표로 감싸서 검색어 변경 방지
-            search_query = f'"{region} {region_detail} {store_name}" 세신'
-            search_url = f"https://search.naver.com/search.naver?query={search_query}"
-            print(f"   🔍 검색: {search_query}")
+            # 네이버 검색 - 여러 검색어 시도
+            search_queries = [
+                f"세신 {region} {region_detail} {store_name}",  # 세신을 앞에
+                f"{region} {region_detail} {store_name} 세신",  # 기본
+                f"{store_name} {region} {region_detail} 세신",  # 매장명 우선
+            ]
             
-            self.driver.get(search_url)
-            
-            # #loc-main-section-root 요소가 나타날 때까지 대기
-            try:
-                wait = WebDriverWait(self.driver, 10)
-                
-                # 플레이스 카드 영역을 찾기 위해 더 구체적인 선택자 사용
-                # api_subject_bx는 플레이스 카드 내부에만 있음
-                place_element = wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root .api_subject_bx"))
-                )
-                
-                # 플레이스 내용이 로드될 때까지 추가 대기
-                time.sleep(3)
-                
-                # 부모 요소 (#loc-main-section-root) 찾기
-                place_root = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
-                
-                # 플레이스인지 확인 (api_subject_bx 클래스 존재 여부)
-                if "api_subject_bx" not in place_root.get_attribute("innerHTML"):
-                    print(f"   ⚠️  플레이스 카드를 찾을 수 없음 (뉴스/다른 콘텐츠)")
-                    return False
-                
-                # 스크린샷 저장
-                screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
-                place_root.screenshot(screenshot_path)
-                
-                # 파일 크기 확인
-                if os.path.exists(screenshot_path):
-                    file_size = os.path.getsize(screenshot_path)
-                    if file_size >= 1000:
-                        print(f"   ✅ 캡처 완료: {file_size // 1024}KB")
-                        return True
+            for idx, search_query in enumerate(search_queries):
+                try:
+                    search_url = f"https://search.naver.com/search.naver?query={search_query}"
+                    if idx == 0:
+                        print(f"   🔍 검색: {search_query}")
                     else:
-                        print(f"   ❌ 캡처 실패: 파일 너무 작음")
-                        return False
-                else:
-                    print(f"   ❌ 캡처 실패")
-                    return False
+                        print(f"   🔍 재검색 ({idx+1}번째 시도): {search_query}")
                     
-            except Exception as e:
-                print(f"   ❌ 플레이스 영역 찾기 실패: {str(e)[:100]}")
-                return False
+                    self.driver.get(search_url)
+                    
+                    # #loc-main-section-root 요소가 나타날 때까지 대기
+                    wait = WebDriverWait(self.driver, 10)
+                    
+                    # 플레이스 카드 영역을 찾기 위해 더 구체적인 선택자 사용
+                    place_element = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root .api_subject_bx"))
+                    )
+                    
+                    # 플레이스 내용이 로드될 때까지 추가 대기
+                    time.sleep(3)
+                    
+                    # 부모 요소 (#loc-main-section-root) 찾기
+                    place_root = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
+                    
+                    # 플레이스인지 확인
+                    if "api_subject_bx" not in place_root.get_attribute("innerHTML"):
+                        print(f"   ⚠️  플레이스 카드를 찾을 수 없음 - 다음 검색어 시도")
+                        continue
+                    
+                    # 스크린샷 저장
+                    screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
+                    place_root.screenshot(screenshot_path)
+                    
+                    # 파일 크기 확인
+                    if os.path.exists(screenshot_path):
+                        file_size = os.path.getsize(screenshot_path)
+                        if file_size >= 1000:
+                            print(f"   ✅ 캡처 완료: {file_size // 1024}KB")
+                            return True
+                        else:
+                            print(f"   ⚠️  파일 너무 작음 - 다음 검색어 시도")
+                            continue
+                    
+                except Exception as e:
+                    if idx < len(search_queries) - 1:
+                        print(f"   ⚠️  시도 실패 - 다음 검색어 시도")
+                        continue
+                    else:
+                        print(f"   ❌ 모든 검색어 실패")
+                        return False
+            
+            print(f"   ❌ 플레이스를 찾을 수 없음")
+            return False
                 
         except Exception as e:
             print(f"   ❌ 캡처 실패: {e}")
