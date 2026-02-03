@@ -104,7 +104,7 @@ class NaverMapPriceExtractor:
         return company_folder
         
     def extract_price_table(self, naver_map_url, save_path):
-        """네이버 지도에서 가격표 추출"""
+        """네이버 지도에서 가격표 추출 (V4 방식 적용)"""
         try:
             print(f"   🗺️  네이버 지도 접속 중...")
             self.driver.get(naver_map_url)
@@ -113,7 +113,6 @@ class NaverMapPriceExtractor:
             # iframe 확인 및 전환
             iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
             if iframes:
-                # 일반적으로 마지막 iframe이 콘텐츠 iframe
                 print(f"   🔍 {len(iframes)}개 iframe 발견")
                 for i in range(len(iframes)-1, -1, -1):  # 역순으로 확인
                     try:
@@ -128,7 +127,7 @@ class NaverMapPriceExtractor:
                     except:
                         continue
             
-            # '가격표 이미지로 보기' 버튼 찾기
+            # '가격표 이미지로 보기' 버튼 찾기 및 클릭
             price_button_found = False
             
             # 방법 1: 정확한 텍스트 매칭
@@ -138,20 +137,18 @@ class NaverMapPriceExtractor:
                     text = btn.text.strip()
                     if '이미지' in text or '보기' in text or text == '가격표':
                         print(f"   ✅ 가격표 버튼 발견: '{text}'")
-                        # 클릭 가능할 때까지 대기
                         try:
                             self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                             time.sleep(0.5)
                             self.driver.execute_script("arguments[0].click();", btn)
-                            time.sleep(2)
+                            time.sleep(3)  # 갤러리 로딩 대기 증가
                             price_button_found = True
                             break
                         except:
-                            # 부모 요소 클릭 시도
                             try:
                                 parent = btn.find_element(By.XPATH, "..")
                                 self.driver.execute_script("arguments[0].click();", parent)
-                                time.sleep(2)
+                                time.sleep(3)
                                 price_button_found = True
                                 break
                             except:
@@ -167,7 +164,7 @@ class NaverMapPriceExtractor:
                         if '가격표' in link.text:
                             print(f"   ✅ 가격표 링크 발견")
                             self.driver.execute_script("arguments[0].click();", link)
-                            time.sleep(2)
+                            time.sleep(3)
                             price_button_found = True
                             break
                 except:
@@ -178,52 +175,74 @@ class NaverMapPriceExtractor:
                 self.stats['no_price'] += 1
                 return False
             
-            print("   📋 가격표 이미지 로딩 중...")
-            time.sleep(3)  # 이미지 로딩 대기
+            # 가격표 갤러리 뷰어에서 이미지 추출 (V4 방식)
+            print("   📋 가격표 썸네일 로딩 중...")
+            time.sleep(2)
             
-            # 가격표 이미지 찾기
+            # 스크롤하여 모든 썸네일 로드
+            self.scroll_photo_area()
+            
             price_images = []
             
-            # 방법 1: 큰 이미지 찾기
-            try:
-                all_images = self.driver.find_elements(By.TAG_NAME, "img")
-                for img in all_images:
-                    try:
-                        src = img.get_attribute('src')
-                        size = img.size
-                        
-                        # 네이버 CDN 이미지이고 충분히 큰 경우
-                        if src and 'phinf.pstatic.net' in src:
-                            if size['width'] > 200 or size['height'] > 200:
-                                # 원본 크기로 변환
-                                original_src = self.convert_to_original_size(src)
-                                if original_src not in price_images:
-                                    price_images.append(original_src)
-                    except:
-                        continue
-            except:
-                pass
+            # 썸네일 찾기
+            thumbnails = self.driver.find_elements(By.TAG_NAME, "img")
+            clickable_thumbnails = []
             
-            # 방법 2: 모달/뷰어 내부의 이미지
-            try:
-                viewer_images = self.driver.find_elements(By.XPATH, 
-                    "//div[contains(@class, 'viewer')]//img | //div[contains(@class, 'modal')]//img | //div[contains(@class, 'image')]//img")
-                for img in viewer_images:
-                    src = img.get_attribute('src')
+            for thumb in thumbnails:
+                try:
+                    src = thumb.get_attribute('src')
+                    # 네이버 CDN 썸네일만 선택
                     if src and 'phinf.pstatic.net' in src:
-                        original_src = self.convert_to_original_size(src)
-                        if original_src not in price_images:
-                            price_images.append(original_src)
-            except:
-                pass
+                        clickable_thumbnails.append(thumb)
+                except:
+                    continue
             
-            if not price_images:
+            if not clickable_thumbnails:
                 print("   ❌ 가격표 이미지를 찾을 수 없음")
                 return False
             
-            print(f"   ✅ {len(price_images)}개 가격표 이미지 발견")
+            print(f"   📸 {len(clickable_thumbnails)}개 가격표 썸네일 발견")
+            
+            # 각 썸네일 클릭하여 원본 이미지 URL 추출
+            for idx, thumb in enumerate(clickable_thumbnails, 1):
+                try:
+                    # 썸네일 클릭
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", thumb)
+                    time.sleep(0.3)
+                    self.driver.execute_script("arguments[0].click();", thumb)
+                    time.sleep(1)  # 원본 이미지 로딩 대기
+                    
+                    # 확대된 원본 이미지 찾기
+                    large_images = self.driver.find_elements(By.TAG_NAME, "img")
+                    for img in large_images:
+                        try:
+                            src = img.get_attribute('src')
+                            size = img.size
+                            
+                            # 큰 이미지만 선택 (원본)
+                            if src and 'phinf.pstatic.net' in src:
+                                if size['width'] > 400 or size['height'] > 400:
+                                    # 원본 크기로 변환
+                                    original_src = self.convert_to_original_size(src)
+                                    if original_src not in price_images:
+                                        price_images.append(original_src)
+                                        print(f"      ├── {idx}/{len(clickable_thumbnails)} 원본 추출 완료")
+                                        break
+                        except:
+                            continue
+                    
+                except Exception as e:
+                    print(f"      ⚠️  {idx}번째 썸네일 처리 실패: {e}")
+                    continue
+            
+            if not price_images:
+                print("   ❌ 가격표 원본 이미지를 찾을 수 없음")
+                return False
+            
+            print(f"   ✅ {len(price_images)}개 가격표 원본 이미지 추출 완료")
             
             # 이미지 다운로드
+            print(f"   💾 다운로드 시작...")
             for idx, img_url in enumerate(price_images, 1):
                 try:
                     response = requests.get(img_url, timeout=15, headers={
@@ -269,6 +288,27 @@ class NaverMapPriceExtractor:
                 self.driver.switch_to.default_content()
             except:
                 pass
+    
+    def scroll_photo_area(self):
+        """사진 영역 스크롤하여 모든 썸네일 로드"""
+        try:
+            # 현재 페이지에서 스크롤 가능한 영역 찾기
+            last_height = self.driver.execute_script("return document.body.scrollHeight")
+            
+            for i in range(5):  # 최대 5번 스크롤
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(0.8)
+                
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                
+                if new_height == last_height:
+                    break
+                    
+                last_height = new_height
+                
+        except Exception as e:
+            print(f"      ⚠️  스크롤 오류 (무시): {e}")
+            pass
     
     def convert_to_original_size(self, url):
         """썸네일 URL을 원본 크기로 변환"""
