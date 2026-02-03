@@ -123,30 +123,26 @@ class NaverMapPriceExtractor:
                     self.driver.switch_to.frame(iframes[i])
                     time.sleep(0.5)
                     
-                    # 가격표 링크 찾기 (div.Cycl8 없는 a 태그)
+                    # 가격표 링크 찾기
                     try:
-                        # div.O8qbU.tXI2c > div > div > a (div.Cycl8가 아닌 것)
-                        parent_divs = self.driver.find_elements(By.CSS_SELECTOR, "div.O8qbU.tXI2c > div > div")
+                        # a.place_bluelink.iBUwB 찾기 (가격표 이미지로 보기)
+                        price_links = self.driver.find_elements(By.CSS_SELECTOR, "a.place_bluelink.iBUwB")
                         
-                        for div in parent_divs:
-                            # div.Cycl8 클래스가 없는지 확인
-                            if 'Cycl8' not in div.get_attribute('class'):
-                                try:
-                                    price_link = div.find_element(By.TAG_NAME, "a")
-                                    link_text = price_link.text.strip()
-                                    
-                                    if '가격표' in link_text:
-                                        print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
-                                        
-                                        # 클릭
-                                        self.driver.execute_script("arguments[0].click();", price_link)
-                                        time.sleep(3)  # 뷰어 로딩 대기
-                                        
-                                        price_button_found = True
-                                        print(f"   ✅ 가격표 뷰어 열림")
-                                        break
-                                except:
-                                    continue
+                        for link in price_links:
+                            link_text = link.text.strip()
+                            
+                            if '가격표' in link_text:
+                                print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
+                                
+                                # 클릭
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
+                                time.sleep(0.3)
+                                self.driver.execute_script("arguments[0].click();", link)
+                                time.sleep(3)  # 뷰어 로딩 대기
+                                
+                                price_button_found = True
+                                print(f"   ✅ 가격표 뷰어 열림")
+                                break
                         
                         if price_button_found:
                             break
