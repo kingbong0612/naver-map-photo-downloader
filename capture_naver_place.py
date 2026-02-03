@@ -124,10 +124,11 @@ class NaverPlaceCapturer:
                     
                     # 검색어 제안이 있는지 확인 (네이버가 검색어를 바꾼 경우)
                     try:
-                        suggestion_button = self.driver.find_element(By.CSS_SELECTOR, "#main_pack > section > div > div > div > a")
-                        suggestion_text = suggestion_button.text
-                        if suggestion_text and "검색" in suggestion_text:
-                            print(f"   🔄 원래 검색어로 재검색: {suggestion_text}")
+                        # suggest_wrap 영역 내의 a.link 찾기
+                        suggestion_button = self.driver.find_element(By.CSS_SELECTOR, ".suggest_wrap .dsc_area a.link")
+                        suggestion_text = suggestion_button.text.strip()
+                        if suggestion_text:
+                            print(f"   🔄 원래 검색어로 재검색: '{suggestion_text}'")
                             suggestion_button.click()
                             time.sleep(2)
                     except:
