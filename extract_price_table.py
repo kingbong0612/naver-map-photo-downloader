@@ -110,64 +110,72 @@ class NaverMapPriceExtractor:
             self.driver.get(naver_map_url)
             time.sleep(4)
             
-            # 모든 iframe을 순회하며 '가격표 이미지로 보기' 링크 찾기
+            # iframe 전환
             iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-            print(f"   🔍 {len(iframes)}개 iframe 순회")
+            print(f"   🔍 {len(iframes)}개 iframe 발견")
             
             price_button_found = False
             
+            # 모든 iframe 순회
             for i in range(len(iframes)-1, -1, -1):
                 try:
                     self.driver.switch_to.default_content()
                     self.driver.switch_to.frame(iframes[i])
                     time.sleep(0.5)
                     
-                    # 이 iframe에서 '가격표' 링크 찾기
+                    # CSS Selector로 가격표 링크 찾기
                     try:
-                        # 방법 1: <a> 태그에서 찾기
-                        links = self.driver.find_elements(By.TAG_NAME, "a")
-                        for link in links:
-                            link_text = link.text.strip()
-                            if '가격표' in link_text and '이미지' in link_text:
-                                print(f"   ✅ iframe [{i+1}]에서 링크 발견: '{link_text}'")
+                        # 정확한 셀렉터 사용
+                        price_link = self.driver.find_element(By.CSS_SELECTOR, "#app-root > div > div > div > div > div > div.place_section_content > div > div.O8qbU.tXI2c > div > div > a")
+                        
+                        link_text = price_link.text.strip()
+                        print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
+                        
+                        # 클릭
+                        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", price_link)
+                        time.sleep(0.3)
+                        self.driver.execute_script("arguments[0].click();", price_link)
+                        time.sleep(5)
+                        
+                        price_button_found = True
+                        print(f"   ✅ 클릭 성공")
+                        break
+                        
+                    except:
+                        # 더 간단한 셀렉터 시도
+                        try:
+                            price_link = self.driver.find_element(By.CSS_SELECTOR, "div.O8qbU.tXI2c a")
+                            
+                            link_text = price_link.text.strip()
+                            if '가격표' in link_text:
+                                print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
                                 
-                                # 클릭
-                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
-                                time.sleep(0.3)
-                                self.driver.execute_script("arguments[0].click();", link)
+                                self.driver.execute_script("arguments[0].click();", price_link)
                                 time.sleep(5)
                                 
                                 price_button_found = True
                                 print(f"   ✅ 클릭 성공")
                                 break
-                        
-                        if price_button_found:
-                            break
+                        except:
+                            pass
                             
-                        # 방법 2: 모든 요소에서 '가격표' 텍스트 찾기
-                        if not price_button_found:
-                            elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), '가격표')]")
-                            for elem in elements:
-                                text = elem.text.strip()
-                                if text and '가격표' in text and '업체' not in text and '방문자' not in text:
-                                    print(f"   ✅ iframe [{i+1}]에서 요소 발견: '{text}'")
-                                    
-                                    self.driver.execute_script("arguments[0].click();", elem)
-                                    time.sleep(5)
-                                    
-                                    price_button_found = True
-                                    print(f"   ✅ 클릭 성공")
-                                    break
-                            
-                            if price_button_found:
-                                break
-                                
-                    except:
-                        pass
-                        
                 except:
                     self.driver.switch_to.default_content()
                     continue
+            
+            # 메인 페이지에서도 시도
+            if not price_button_found:
+                try:
+                    self.driver.switch_to.default_content()
+                    price_link = self.driver.find_element(By.CSS_SELECTOR, "div.O8qbU.tXI2c a")
+                    
+                    if '가격표' in price_link.text:
+                        print(f"   ✅ 메인 페이지에서 가격표 링크 발견")
+                        self.driver.execute_script("arguments[0].click();", price_link)
+                        time.sleep(5)
+                        price_button_found = True
+                except:
+                    pass
             
             if not price_button_found:
                 print("   ⚠️  가격표 링크를 찾을 수 없음")
