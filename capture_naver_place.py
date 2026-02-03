@@ -120,6 +120,18 @@ class NaverPlaceCapturer:
                         print(f"   🔍 재검색 ({idx+1}번째 시도): {search_query}")
                     
                     self.driver.get(search_url)
+                    time.sleep(2)
+                    
+                    # 검색어 제안이 있는지 확인 (네이버가 검색어를 바꾼 경우)
+                    try:
+                        suggestion_button = self.driver.find_element(By.CSS_SELECTOR, "#main_pack > section > div > div > div > a")
+                        suggestion_text = suggestion_button.text
+                        if suggestion_text and "검색" in suggestion_text:
+                            print(f"   🔄 원래 검색어로 재검색: {suggestion_text}")
+                            suggestion_button.click()
+                            time.sleep(2)
+                    except:
+                        pass  # 제안 없음 - 정상
                     
                     # #loc-main-section-root 요소가 나타날 때까지 대기
                     wait = WebDriverWait(self.driver, 10)
