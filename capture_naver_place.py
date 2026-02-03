@@ -151,6 +151,20 @@ class NaverPlaceCapturer:
             
             if not place_link_found:
                 print("   ⚠️  플레이스 링크를 찾을 수 없음 - 검색 결과 페이지에서 캡처")
+            else:
+                # 플레이스 페이지로 이동했으면 iframe 확인
+                time.sleep(2)
+                try:
+                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                    if iframes:
+                        print(f"   🔍 {len(iframes)}개 iframe 발견")
+                        # 가장 큰 iframe으로 전환 (보통 메인 콘텐츠)
+                        main_iframe = max(iframes, key=lambda f: f.size['width'] * f.size['height'])
+                        self.driver.switch_to.frame(main_iframe)
+                        print(f"   ✅ 메인 iframe으로 전환")
+                        time.sleep(1)
+                except:
+                    pass
             
             # 플레이스 카드 찾기 (검색바 제외)
             place_card = None
@@ -223,29 +237,28 @@ class NaverPlaceCapturer:
             self.driver.execute_script("arguments[0].scrollIntoView(true);", place_card)
             time.sleep(1)
             
-            # 임시 스크린샷 저장
-            temp_screenshot_path = os.path.join(save_path, "temp_screenshot.png")
+            # 스크린샷 저장 (iframe 내부라면 전체 화면 캡처 후 크롭)
             screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
-            place_card.screenshot(temp_screenshot_path)
             
-            # 이미지 상단 잘라내기 (검색바 제거)
             try:
-                from PIL import Image
-                img = Image.open(temp_screenshot_path)
-                width, height = img.size
+                # 요소 직접 캡처 시도
+                place_card.screenshot(screenshot_path)
                 
-                # 상단 80px 잘라내기 (검색바 부분)
-                crop_top = 80  # 잘라낼 픽셀 수
-                
-                # 너무 작은 이미지면 50px만
-                if height < 300:
-                    crop_top = 50
-                
-                # 크롭 (왼쪽, 위, 오른쪽, 아래)
-                cropped_img = img.crop((0, crop_top, width, height))
-                
-                # 최종 파일로 저장
-                cropped_img.save(screenshot_path)
+                # 파일 크기 확인 (1KB 미만이면 실패)
+                file_size = os.path.getsize(screenshot_path)
+                if file_size < 1000:
+                    print("   ⚠️  캡처 파일이 너무 작음, 전체 화면 캡처 시도")
+                    os.remove(screenshot_path)
+                    
+                    # 전체 화면 캡처 후 크롭
+                    self.driver.save_screenshot(screenshot_path)
+                else:
+                    print(f"   ✅ 캡처 완료: 네이버플레이스_캡처.png ({file_size // 1024}KB)")
+                    return True
+                    
+            except Exception as e:
+                print(f"   ⚠️  요소 캡처 실패, 전체 화면 캡처: {str(e)[:50]}")
+                self.driver.save_screenshot(screenshot_path)
                 
                 # 임시 파일 삭제
                 os.remove(temp_screenshot_path)
