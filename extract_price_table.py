@@ -104,80 +104,70 @@ class NaverMapPriceExtractor:
         return company_folder
         
     def extract_price_table(self, naver_map_url, save_path):
-        """네이버 지도에서 가격표 추출 - 홈 탭(정보)에서 '가격표 이미지로 보기' 클릭"""
+        """네이버 지도에서 가격표 추출"""
         try:
             print(f"   🗺️  네이버 지도 접속 중...")
             self.driver.get(naver_map_url)
-            time.sleep(4)  # 페이지 로딩 대기
+            time.sleep(4)
             
-            # iframe 확인 및 전환
-            target_iframe_index = None
+            # 모든 iframe을 순회하며 '가격표 이미지로 보기' 링크 찾기
             iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+            print(f"   🔍 {len(iframes)}개 iframe 순회")
             
-            if iframes:
-                print(f"   🔍 {len(iframes)}개 iframe 발견")
-                
-                # 홈 탭(정보) iframe 찾기 - '가격표'가 있지만 '업체사진', '방문자' 등은 없는 곳
-                for i in range(len(iframes)-1, -1, -1):  # 역순으로 확인
-                    try:
-                        self.driver.switch_to.default_content()
-                        self.driver.switch_to.frame(iframes[i])
-                        
-                        page_text = self.driver.page_source
-                        
-                        has_price = '가격표' in page_text
-                        has_photo_tab = '업체사진' in page_text or '방문자 리뷰' in page_text
-                        
-                        print(f"      iframe [{i+1}]: 가격표={'O' if has_price else 'X'}, 사진탭={'O' if has_photo_tab else 'X'}")
-                        
-                        # 가격표는 있지만 사진탭은 아닌 곳 (홈 탭)
-                        if has_price and not has_photo_tab:
-                            print(f"   ✅ iframe [{i+1}]에서 홈 탭(정보) 발견")
-                            target_iframe_index = i
-                            break
-                            
-                    except Exception as e:
-                        self.driver.switch_to.default_content()
-                        continue
-            
-            if target_iframe_index is None:
-                print("   ⚠️  홈 탭을 찾을 수 없음, 메인 페이지에서 시도...")
-                self.driver.switch_to.default_content()
-            
-            # '가격표 이미지로 보기' 링크 찾기 및 클릭
             price_button_found = False
             
-            # 방법 1: '가격표' 텍스트가 있는 요소 찾기
-            try:
-                elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), '가격표')]")
-                print(f"   🔍 '가격표' 포함 요소 {len(elements)}개 발견")
-                
-                for elem in elements:
+            for i in range(len(iframes)-1, -1, -1):
+                try:
+                    self.driver.switch_to.default_content()
+                    self.driver.switch_to.frame(iframes[i])
+                    time.sleep(0.5)
+                    
+                    # 이 iframe에서 '가격표' 링크 찾기
                     try:
-                        text = elem.text.strip()
-                        if not text:
-                            continue
-                            
-                        print(f"      - '{text}'")
+                        # 방법 1: <a> 태그에서 찾기
+                        links = self.driver.find_elements(By.TAG_NAME, "a")
+                        for link in links:
+                            link_text = link.text.strip()
+                            if '가격표' in link_text and '이미지' in link_text:
+                                print(f"   ✅ iframe [{i+1}]에서 링크 발견: '{link_text}'")
+                                
+                                # 클릭
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
+                                time.sleep(0.3)
+                                self.driver.execute_script("arguments[0].click();", link)
+                                time.sleep(5)
+                                
+                                price_button_found = True
+                                print(f"   ✅ 클릭 성공")
+                                break
                         
-                        # '가격표 이미지로 보기' 또는 '가격표' (카테고리명 제외)
-                        if '가격표' in text and not any(x in text for x in ['업체', '방문자', '클립', '블로그']):
-                            print(f"   ✅ 클릭 시도: '{text}'")
-                            
-                            # 클릭
-                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
-                            time.sleep(0.5)
-                            self.driver.execute_script("arguments[0].click();", elem)
-                            time.sleep(5)  # 충분한 대기
-                            price_button_found = True
-                            print(f"   ✅ 클릭 완료")
+                        if price_button_found:
                             break
                             
-                    except Exception as e:
-                        continue
+                        # 방법 2: 모든 요소에서 '가격표' 텍스트 찾기
+                        if not price_button_found:
+                            elements = self.driver.find_elements(By.XPATH, "//*[contains(text(), '가격표')]")
+                            for elem in elements:
+                                text = elem.text.strip()
+                                if text and '가격표' in text and '업체' not in text and '방문자' not in text:
+                                    print(f"   ✅ iframe [{i+1}]에서 요소 발견: '{text}'")
+                                    
+                                    self.driver.execute_script("arguments[0].click();", elem)
+                                    time.sleep(5)
+                                    
+                                    price_button_found = True
+                                    print(f"   ✅ 클릭 성공")
+                                    break
+                            
+                            if price_button_found:
+                                break
+                                
+                    except:
+                        pass
                         
-            except Exception as e:
-                print(f"   ⚠️  오류: {str(e)[:50]}")
+                except:
+                    self.driver.switch_to.default_content()
+                    continue
             
             if not price_button_found:
                 print("   ⚠️  가격표 링크를 찾을 수 없음")
