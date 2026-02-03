@@ -223,9 +223,40 @@ class NaverPlaceCapturer:
             self.driver.execute_script("arguments[0].scrollIntoView(true);", place_card)
             time.sleep(1)
             
-            # 스크린샷 저장
+            # 임시 스크린샷 저장
+            temp_screenshot_path = os.path.join(save_path, "temp_screenshot.png")
             screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
-            place_card.screenshot(screenshot_path)
+            place_card.screenshot(temp_screenshot_path)
+            
+            # 이미지 상단 잘라내기 (검색바 제거)
+            try:
+                from PIL import Image
+                img = Image.open(temp_screenshot_path)
+                width, height = img.size
+                
+                # 상단 80px 잘라내기 (검색바 부분)
+                crop_top = 80  # 잘라낼 픽셀 수
+                
+                # 너무 작은 이미지면 50px만
+                if height < 300:
+                    crop_top = 50
+                
+                # 크롭 (왼쪽, 위, 오른쪽, 아래)
+                cropped_img = img.crop((0, crop_top, width, height))
+                
+                # 최종 파일로 저장
+                cropped_img.save(screenshot_path)
+                
+                # 임시 파일 삭제
+                os.remove(temp_screenshot_path)
+                
+                print(f"   ✂️  상단 {crop_top}px 제거 완료")
+                
+            except Exception as e:
+                print(f"   ⚠️  이미지 크롭 실패, 원본 사용: {e}")
+                # 크롭 실패시 임시 파일을 최종 파일로 이동
+                if os.path.exists(temp_screenshot_path):
+                    os.rename(temp_screenshot_path, screenshot_path)
             
             # 파일 크기 확인
             if os.path.exists(screenshot_path):
