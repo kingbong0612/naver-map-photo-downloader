@@ -41,6 +41,8 @@ class NaverMapBulkDownloaderV3:
             'no_url': 0,
             'total_photos': 0
         }
+        # iframe 캐싱: 어느 iframe에 사진 탭이 있는지 기억
+        self.photo_tab_iframe_index = None  # None = 아직 모름, 0 = 메인 페이지, 1~N = iframe 번호
         
     def setup_driver(self):
         """Chrome 드라이버 설정"""
@@ -193,46 +195,86 @@ class NaverMapBulkDownloaderV3:
             self.driver.get(url)
             time.sleep(5)  # 충분한 로딩 시간
             
-            # 먼저 메인 페이지에서 사진 탭 찾기 시도
-            print(f"   🔍 메인 페이지에서 사진 탭 찾는 중...")
-            if self.find_and_click_photo_tab():
-                print("   ✅ 메인 페이지에서 사진 탭 클릭 성공!")
-            else:
-                # 메인 페이지에서 실패하면 iframe 확인
-                print(f"   ⚠️  메인 페이지에서 사진 탭을 찾지 못함")
-                print(f"   🔍 iframe 확인 중...")
-                
-                iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-                if iframes:
-                    print(f"   📦 {len(iframes)}개의 iframe 발견")
-                    
-                    # 각 iframe을 순회하면서 사진 탭 찾기
-                    found_in_iframe = False
-                    for i, iframe in enumerate(iframes):
-                        try:
-                            print(f"      🔍 iframe [{i+1}] 확인 중...")
-                            self.driver.switch_to.frame(iframe)
-                            time.sleep(1)
-                            
-                            # iframe 내부에서 사진 탭 찾기
-                            if self.find_and_click_photo_tab():
-                                print(f"      ✅ iframe [{i+1}]에서 사진 탭 찾음!")
-                                found_in_iframe = True
-                                break
-                            else:
-                                # 이 iframe에 없으면 메인으로 돌아가기
-                                self.driver.switch_to.default_content()
-                        except Exception as e:
-                            print(f"      ⚠️  iframe [{i+1}] 오류: {e}")
-                            self.driver.switch_to.default_content()
-                            continue
-                    
-                    if not found_in_iframe:
-                        print("   ⚠️  모든 iframe에서 사진 탭을 찾지 못함")
-                        return [], {}
+            # iframe 캐싱 사용: 이전에 찾은 위치가 있으면 바로 이동
+            if self.photo_tab_iframe_index is not None:
+                if self.photo_tab_iframe_index == 0:
+                    # 메인 페이지에 사진 탭이 있음
+                    print(f"   ⚡ 캐시 사용: 메인 페이지에서 사진 탭 찾기")
+                    if self.find_and_click_photo_tab():
+                        print("   ✅ 메인 페이지에서 사진 탭 클릭 성공!")
+                    else:
+                        print("   ⚠️  캐시가 잘못됨. 전체 검색 시작...")
+                        self.photo_tab_iframe_index = None  # 캐시 무효화
+                        return self.extract_photos_from_url(url)  # 재시도
                 else:
-                    print("   ⚠️  iframe도 없고 사진 탭도 찾지 못함")
-                    return [], {}
+                    # 특정 iframe에 사진 탭이 있음
+                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                    if iframes and len(iframes) >= self.photo_tab_iframe_index:
+                        print(f"   ⚡ 캐시 사용: iframe [{self.photo_tab_iframe_index}]로 바로 이동")
+                        try:
+                            self.driver.switch_to.frame(iframes[self.photo_tab_iframe_index - 1])
+                            time.sleep(1)
+                            if self.find_and_click_photo_tab():
+                                print(f"   ✅ iframe [{self.photo_tab_iframe_index}]에서 사진 탭 클릭 성공!")
+                            else:
+                                print("   ⚠️  캐시가 잘못됨. 전체 검색 시작...")
+                                self.driver.switch_to.default_content()
+                                self.photo_tab_iframe_index = None  # 캐시 무효화
+                                return self.extract_photos_from_url(url)  # 재시도
+                        except Exception as e:
+                            print(f"   ⚠️  캐시 사용 실패: {e}")
+                            self.driver.switch_to.default_content()
+                            self.photo_tab_iframe_index = None  # 캐시 무효화
+                            return self.extract_photos_from_url(url)  # 재시도
+                    else:
+                        print("   ⚠️  iframe 개수가 달라짐. 전체 검색 시작...")
+                        self.photo_tab_iframe_index = None  # 캐시 무효화
+                        return self.extract_photos_from_url(url)  # 재시도
+            else:
+                # 캐시 없음: 첫 매장이므로 전체 검색
+                print(f"   🔍 첫 검색: 메인 페이지에서 사진 탭 찾는 중...")
+                if self.find_and_click_photo_tab():
+                    print("   ✅ 메인 페이지에서 사진 탭 클릭 성공!")
+                    self.photo_tab_iframe_index = 0  # 메인 페이지에 있음을 캐시
+                    print("   💾 캐시 저장: 메인 페이지")
+                else:
+                    # 메인 페이지에서 실패하면 iframe 확인
+                    print(f"   ⚠️  메인 페이지에서 사진 탭을 찾지 못함")
+                    print(f"   🔍 iframe 확인 중...")
+                    
+                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                    if iframes:
+                        print(f"   📦 {len(iframes)}개의 iframe 발견")
+                        
+                        # 각 iframe을 순회하면서 사진 탭 찾기
+                        found_in_iframe = False
+                        for i, iframe in enumerate(iframes):
+                            try:
+                                print(f"      🔍 iframe [{i+1}] 확인 중...")
+                                self.driver.switch_to.frame(iframe)
+                                time.sleep(1)
+                                
+                                # iframe 내부에서 사진 탭 찾기
+                                if self.find_and_click_photo_tab():
+                                    print(f"      ✅ iframe [{i+1}]에서 사진 탭 찾음!")
+                                    self.photo_tab_iframe_index = i + 1  # iframe 번호 캐시 (1부터 시작)
+                                    print(f"      💾 캐시 저장: iframe [{i+1}]")
+                                    found_in_iframe = True
+                                    break
+                                else:
+                                    # 이 iframe에 없으면 메인으로 돌아가기
+                                    self.driver.switch_to.default_content()
+                            except Exception as e:
+                                print(f"      ⚠️  iframe [{i+1}] 오류: {e}")
+                                self.driver.switch_to.default_content()
+                                continue
+                        
+                        if not found_in_iframe:
+                            print("   ⚠️  모든 iframe에서 사진 탭을 찾지 못함")
+                            return [], {}
+                    else:
+                        print("   ⚠️  iframe도 없고 사진 탭도 찾지 못함")
+                        return [], {}
             
             print("   ✅ 사진 탭 클릭 성공!")
             time.sleep(4)  # 사진 로드 대기
