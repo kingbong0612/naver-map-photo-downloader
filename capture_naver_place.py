@@ -98,191 +98,31 @@ class NaverPlaceCapturer:
         return company_folder
         
     def capture_naver_place(self, region, region_detail, store_name, save_path):
-        """네이버 플레이스 캡처"""
+        """네이버 플레이스 캡처 - 간단 버전"""
         try:
             # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
             search_query = f"{region} {region_detail} {store_name} 세신"
             search_url = f"https://search.naver.com/search.naver?query={search_query}"
-            print(f"   🔍 검색어: {search_query}")
+            print(f"   🔍 검색: {search_query}")
+            
             self.driver.get(search_url)
             time.sleep(3)  # 페이지 로딩 대기
             
-            # 플레이스 링크 찾기 및 클릭
-            place_link_found = False
-            
-            # 방법 1: 플레이스 링크 찾기 (place.naver.com)
-            try:
-                links = self.driver.find_elements(By.TAG_NAME, "a")
-                for link in links:
-                    href = link.get_attribute('href')
-                    if href and 'place.naver.com' in href:
-                        print(f"   ✅ 플레이스 링크 발견")
-                        # 새 탭으로 열기 대신 현재 탭에서 이동
-                        self.driver.get(href)
-                        time.sleep(3)
-                        place_link_found = True
-                        break
-            except:
-                pass
-            
-            # 방법 2: '상세보기' 버튼 클릭
-            if not place_link_found:
-                try:
-                    detail_buttons = self.driver.find_elements(By.XPATH, "//*[contains(text(), '상세보기')]")
-                    if detail_buttons:
-                        print(f"   ✅ '상세보기' 버튼 클릭")
-                        detail_buttons[0].click()
-                        time.sleep(3)
-                        place_link_found = True
-                except:
-                    pass
-            
-            # 방법 3: 첫 번째 플레이스 결과 클릭
-            if not place_link_found:
-                try:
-                    place_items = self.driver.find_elements(By.CSS_SELECTOR, "[class*='place'], [class*='biz']")
-                    if place_items:
-                        print(f"   ✅ 플레이스 항목 클릭")
-                        place_items[0].click()
-                        time.sleep(3)
-                        place_link_found = True
-                except:
-                    pass
-            
-            if not place_link_found:
-                print("   ⚠️  플레이스 링크를 찾을 수 없음 - 검색 결과 페이지에서 캡처")
-            else:
-                # 플레이스 페이지로 이동했으면 iframe 확인
-                time.sleep(2)
-                try:
-                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-                    if iframes:
-                        print(f"   🔍 {len(iframes)}개 iframe 발견")
-                        # 가장 큰 iframe으로 전환 (보통 메인 콘텐츠)
-                        main_iframe = max(iframes, key=lambda f: f.size['width'] * f.size['height'])
-                        self.driver.switch_to.frame(main_iframe)
-                        print(f"   ✅ 메인 iframe으로 전환")
-                        time.sleep(1)
-                except:
-                    pass
-            
-            # 플레이스 카드 찾기 (검색바 제외)
-            place_card = None
-            
-            # 방법 1: 플레이스 전용 CSS 선택자 (검색바 제외)
-            place_selectors = [
-                ".place_section._place_section",  # 플레이스 섹션 (가장 정확)
-                "div.place_section",  # 플레이스 섹션
-                ".place_detail_wrapper",  # 플레이스 상세 래퍼
-                "#_title",  # 플레이스 타이틀 영역
-                ".api_subject_bx",  # API 박스
-            ]
-            
-            for selector in place_selectors:
-                try:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                    if elements:
-                        # 가장 큰 요소 선택 (플레이스 메인 카드)
-                        place_card = max(elements, key=lambda e: e.size['width'] * e.size['height'])
-                        print(f"   ✅ 플레이스 카드 발견: {selector}")
-                        break
-                except:
-                    continue
-            
-            # 방법 2: '플레이스' 헤더가 있는 영역 찾기
-            if not place_card:
-                try:
-                    # '플레이스' 텍스트가 있는 요소 찾기
-                    place_headers = self.driver.find_elements(By.XPATH, "//span[text()='플레이스'] | //div[text()='플레이스']")
-                    if place_headers:
-                        # '플레이스' 헤더의 부모 컨테이너 찾기
-                        for header in place_headers:
-                            try:
-                                # 상위 요소로 올라가면서 플레이스 컨테이너 찾기
-                                parent = header
-                                for _ in range(5):  # 최대 5단계 상위
-                                    parent = parent.find_element(By.XPATH, "..")
-                                    # 충분히 큰 영역인지 확인
-                                    size = parent.size
-                                    if size['width'] > 300 and size['height'] > 400:
-                                        place_card = parent
-                                        print(f"   ✅ 플레이스 카드 발견 ('플레이스' 헤더 기준)")
-                                        break
-                                if place_card:
-                                    break
-                            except:
-                                continue
-                except:
-                    pass
-            
-            # 방법 3: 지도 + 정보가 있는 큰 영역 찾기
-            if not place_card:
-                try:
-                    # class에 'place'가 포함된 큰 요소들
-                    elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'place')]")
-                    if elements:
-                        # 높이가 400px 이상인 것만 (검색바 제외)
-                        large_elements = [e for e in elements if e.size['height'] > 400]
-                        if large_elements:
-                            place_card = large_elements[0]
-                            print(f"   ✅ 플레이스 카드 발견 (큰 영역 기준)")
-                except:
-                    pass
-            
-            if not place_card:
-                print("   ❌ 플레이스 카드를 찾을 수 없음")
-                return False
-            
-            # 스크롤해서 요소가 보이도록
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", place_card)
-            time.sleep(1)
-            
-            # 스크린샷 저장 (iframe 내부라면 전체 화면 캡처 후 크롭)
+            # 전체 화면 캡처
             screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
-            
-            try:
-                # 요소 직접 캡처 시도
-                place_card.screenshot(screenshot_path)
-                
-                # 파일 크기 확인 (1KB 미만이면 실패)
-                file_size = os.path.getsize(screenshot_path)
-                if file_size < 1000:
-                    print("   ⚠️  캡처 파일이 너무 작음, 전체 화면 캡처 시도")
-                    os.remove(screenshot_path)
-                    
-                    # 전체 화면 캡처 후 크롭
-                    self.driver.save_screenshot(screenshot_path)
-                else:
-                    print(f"   ✅ 캡처 완료: 네이버플레이스_캡처.png ({file_size // 1024}KB)")
-                    return True
-                    
-            except Exception as e:
-                print(f"   ⚠️  요소 캡처 실패, 전체 화면 캡처: {str(e)[:50]}")
-                self.driver.save_screenshot(screenshot_path)
-                
-                # 임시 파일 삭제
-                os.remove(temp_screenshot_path)
-                
-                print(f"   ✂️  상단 {crop_top}px 제거 완료")
-                
-            except Exception as e:
-                print(f"   ⚠️  이미지 크롭 실패, 원본 사용: {e}")
-                # 크롭 실패시 임시 파일을 최종 파일로 이동
-                if os.path.exists(temp_screenshot_path):
-                    os.rename(temp_screenshot_path, screenshot_path)
+            self.driver.save_screenshot(screenshot_path)
             
             # 파일 크기 확인
             if os.path.exists(screenshot_path):
                 file_size = os.path.getsize(screenshot_path)
-                if file_size < 1000:  # 1KB 미만이면 실패로 간주
-                    print(f"   ⚠️  캡처 파일이 너무 작음 ({file_size} bytes)")
-                    os.remove(screenshot_path)
+                if file_size >= 1000:
+                    print(f"   ✅ 캡처 완료: {file_size // 1024}KB")
+                    return True
+                else:
+                    print(f"   ❌ 캡처 실패: 파일 너무 작음")
                     return False
-                
-                print(f"   ✅ 캡처 완료: {os.path.basename(screenshot_path)} ({file_size // 1024}KB)")
-                return True
             else:
-                print("   ❌ 캡처 파일 저장 실패")
+                print(f"   ❌ 캡처 실패")
                 return False
                 
         except Exception as e:
