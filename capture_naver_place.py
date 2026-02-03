@@ -106,7 +106,7 @@ class NaverPlaceCapturer:
             print(f"   🔍 검색: {search_query}")
             
             self.driver.get(search_url)
-            time.sleep(3)  # 페이지 로딩 대기
+            time.sleep(2)  # 페이지 로딩 대기 (단축)
             
             # 전체 화면 캡처
             screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
