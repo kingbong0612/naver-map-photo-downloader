@@ -155,9 +155,7 @@ class NaverPlaceCapturer:
             # 이미 캡처 파일이 있는지 확인
             existing_capture = os.path.join(company_folder, "네이버플레이스_캡처.png")
             if os.path.exists(existing_capture):
-                print(f"   ℹ️  이미 캡처 파일이 존재함 - 건너뜀")
-                self.stats['success'] += 1
-                return
+                print(f"   ℹ️  이미 캡처 파일이 존재함 - 덮어쓰기")
             
             # 네이버 플레이스 캡처
             if self.capture_naver_place(region, region_detail, store_name, company_folder):
