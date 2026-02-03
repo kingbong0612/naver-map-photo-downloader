@@ -101,11 +101,15 @@ class NaverPlaceCapturer:
     def capture_naver_place(self, region, region_detail, store_name, save_path):
         """네이버 플레이스 캡처 - 플레이스 카드만 정확히"""
         try:
+            # NaN 값 처리 (지역상세가 없는 경우)
+            if pd.isna(region_detail) or str(region_detail).lower() == 'nan':
+                region_detail = ""
+            
             # 네이버 검색 - 여러 검색어 시도
             search_queries = [
-                f"세신 {region} {region_detail} {store_name}",  # 세신을 앞에
-                f"{region} {region_detail} {store_name} 세신",  # 기본
-                f"{store_name} {region} {region_detail} 세신",  # 매장명 우선
+                f"세신 {region} {region_detail} {store_name}".replace("  ", " ").strip(),  # 세신을 앞에
+                f"{region} {region_detail} {store_name} 세신".replace("  ", " ").strip(),  # 기본
+                f"{store_name} {region} {region_detail} 세신".replace("  ", " ").strip(),  # 매장명 우선
             ]
             
             for idx, search_query in enumerate(search_queries):
