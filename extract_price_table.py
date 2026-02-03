@@ -123,7 +123,17 @@ class NaverMapPriceExtractor:
                     self.driver.switch_to.frame(iframes[i])
                     time.sleep(0.5)
                     
-                    # 가격표 링크 찾기
+                    # 1. 먼저 홈 탭 클릭 (혹시 다른 탭에 있을 수 있음)
+                    try:
+                        home_tab = self.driver.find_element(By.CSS_SELECTOR, "a.tpj9w._tab-menu[href*='/home']")
+                        if home_tab.get_attribute('aria-selected') != 'true':
+                            self.driver.execute_script("arguments[0].click();", home_tab)
+                            time.sleep(1)
+                            print(f"   ✅ 홈 탭으로 이동")
+                    except:
+                        pass  # 이미 홈 탭에 있을 수 있음
+                    
+                    # 2. 가격표 링크 찾기
                     try:
                         # a.place_bluelink.iBUwB 찾기 (가격표 이미지로 보기)
                         price_links = self.driver.find_elements(By.CSS_SELECTOR, "a.place_bluelink.iBUwB")
