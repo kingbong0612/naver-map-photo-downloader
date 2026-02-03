@@ -123,157 +123,90 @@ class NaverMapPriceExtractor:
                     self.driver.switch_to.frame(iframes[i])
                     time.sleep(0.5)
                     
-                    # CSS Selector로 가격표 링크 찾기
+                    # 가격표 링크 찾기 (div.Cycl8 없는 a 태그)
                     try:
-                        # 정확한 셀렉터 사용
-                        price_link = self.driver.find_element(By.CSS_SELECTOR, "#app-root > div > div > div > div > div > div.place_section_content > div > div.O8qbU.tXI2c > div > div > a")
+                        # div.O8qbU.tXI2c > div > div > a (div.Cycl8가 아닌 것)
+                        parent_divs = self.driver.find_elements(By.CSS_SELECTOR, "div.O8qbU.tXI2c > div > div")
                         
-                        link_text = price_link.text.strip()
-                        print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
+                        for div in parent_divs:
+                            # div.Cycl8 클래스가 없는지 확인
+                            if 'Cycl8' not in div.get_attribute('class'):
+                                try:
+                                    price_link = div.find_element(By.TAG_NAME, "a")
+                                    link_text = price_link.text.strip()
+                                    
+                                    if '가격표' in link_text:
+                                        print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
+                                        
+                                        # 클릭
+                                        self.driver.execute_script("arguments[0].click();", price_link)
+                                        time.sleep(3)  # 뷰어 로딩 대기
+                                        
+                                        price_button_found = True
+                                        print(f"   ✅ 가격표 뷰어 열림")
+                                        break
+                                except:
+                                    continue
                         
-                        # 클릭
-                        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", price_link)
-                        time.sleep(0.3)
-                        self.driver.execute_script("arguments[0].click();", price_link)
-                        time.sleep(5)
-                        
-                        price_button_found = True
-                        print(f"   ✅ 클릭 성공")
-                        break
-                        
+                        if price_button_found:
+                            break
+                            
                     except:
-                        # 더 간단한 셀렉터 시도
-                        try:
-                            price_link = self.driver.find_element(By.CSS_SELECTOR, "div.O8qbU.tXI2c a")
-                            
-                            link_text = price_link.text.strip()
-                            if '가격표' in link_text:
-                                print(f"   ✅ iframe [{i+1}]에서 가격표 링크 발견: '{link_text}'")
-                                
-                                self.driver.execute_script("arguments[0].click();", price_link)
-                                time.sleep(5)
-                                
-                                price_button_found = True
-                                print(f"   ✅ 클릭 성공")
-                                break
-                        except:
-                            pass
-                            
+                        pass
+                        
                 except:
                     self.driver.switch_to.default_content()
                     continue
-            
-            # 메인 페이지에서도 시도
-            if not price_button_found:
-                try:
-                    self.driver.switch_to.default_content()
-                    price_link = self.driver.find_element(By.CSS_SELECTOR, "div.O8qbU.tXI2c a")
-                    
-                    if '가격표' in price_link.text:
-                        print(f"   ✅ 메인 페이지에서 가격표 링크 발견")
-                        self.driver.execute_script("arguments[0].click();", price_link)
-                        time.sleep(5)
-                        price_button_found = True
-                except:
-                    pass
             
             if not price_button_found:
                 print("   ⚠️  가격표 링크를 찾을 수 없음")
                 self.stats['no_price'] += 1
                 return False
             
-            # 가격표 이미지 페이지 로딩 대기
-            print("   📋 가격표 이미지 페이지 로딩 중...")
-            time.sleep(5)  # 로딩 대기 시간 증가
+            # 이제 메인 페이지로 나와서 뷰어에서 이미지 추출
+            self.driver.switch_to.default_content()
+            time.sleep(2)
             
-            # 가격표 페이지인지 확인
-            page_source = self.driver.page_source
-            
-            # 가격표 관련 키워드 확인
-            has_price_keyword = any(keyword in page_source for keyword in [
-                '가격표', 'price', '메뉴판', 'menu'
-            ])
-            
-            # 업체 사진 페이지 키워드 확인 (이러면 안됨)
-            has_photo_keyword = any(keyword in page_source for keyword in [
-                '업체사진', '방문자', '클립', '블로그'
-            ])
-            
-            if has_photo_keyword and not has_price_keyword:
-                print("   ⚠️  업체 사진 페이지에 있음 - 가격표 페이지가 아닙니다!")
-                print("   💡 가격표 버튼 클릭이 제대로 되지 않았습니다.")
-                self.stats['no_price'] += 1
-                return False
-            
-            print(f"   🔍 페이지 확인: 가격표 키워드={'있음' if has_price_keyword else '없음'}")
-            
-            # 스크롤하여 모든 이미지 로드
-            print("   🔄 스크롤하여 이미지 로딩...")
-            self.scroll_photo_area()
-            time.sleep(2)  # 스크롤 후 추가 대기
+            print("   📸 가격표 이미지 추출 중...")
             
             price_images = []
             
-            # 모든 이미지 요소에서 직접 URL 추출
-            all_images = self.driver.find_elements(By.TAG_NAME, "img")
-            print(f"   🔍 총 {len(all_images)}개 이미지 요소 발견")
+            # 가격표 뷰어에서 이미지 추출
+            max_images = 20  # 최대 20개까지
             
-            for img in all_images:
+            for img_idx in range(max_images):
                 try:
-                    src = img.get_attribute('src')
-                    size = img.size
+                    # 현재 이미지 추출
+                    img_element = self.driver.find_element(By.CSS_SELECTOR, 
+                        "body > div.StyledPhotoViewer-sc-138rr41-0.dyujdl > div > div.viewer_content > div > div > img")
                     
-                    # 네이버 CDN 이미지만 추출 + 크기 필터 (너무 작은 아이콘 제외)
-                    if src and 'phinf.pstatic.net' in src:
-                        # 가격표는 일반적으로 큰 이미지 (최소 200px)
-                        if size['width'] >= 150 or size['height'] >= 150:
-                            # 원본 크기로 변환
-                            original_src = self.convert_to_original_size(src)
-                            
-                            if original_src not in price_images:
-                                price_images.append(original_src)
-                                print(f"      ├── 이미지 발견: {size['width']}x{size['height']}px")
-                            
-                except:
-                    continue
-            
-            # data-src 속성도 확인
-            all_images_with_data_src = self.driver.find_elements(By.XPATH, "//*[@data-src]")
-            if all_images_with_data_src:
-                print(f"   🔍 data-src 속성 확인: {len(all_images_with_data_src)}개")
-                
-            for img in all_images_with_data_src:
-                try:
-                    src = img.get_attribute('data-src')
-                    if src and 'phinf.pstatic.net' in src:
-                        try:
-                            size = img.size
-                            if size['width'] >= 150 or size['height'] >= 150:
-                                original_src = self.convert_to_original_size(src)
-                                if original_src not in price_images:
-                                    price_images.append(original_src)
-                                    print(f"      ├── data-src 이미지: {size['width']}x{size['height']}px")
-                        except:
-                            # 크기 확인 실패해도 추가 시도
-                            original_src = self.convert_to_original_size(src)
-                            if original_src not in price_images:
-                                price_images.append(original_src)
-                except:
-                    continue
+                    img_src = img_element.get_attribute('src')
+                    
+                    if img_src and img_src not in price_images:
+                        # 원본 크기로 변환
+                        original_src = self.convert_to_original_size(img_src)
+                        price_images.append(original_src)
+                        print(f"      ├── {len(price_images)}번째 가격표 이미지 추출")
+                    
+                    # 다음 버튼 클릭
+                    try:
+                        next_button = self.driver.find_element(By.CSS_SELECTOR, 
+                            "body > div.StyledPhotoViewer-sc-138rr41-0.dyujdl > div > button.btn_next")
+                        
+                        self.driver.execute_script("arguments[0].click();", next_button)
+                        time.sleep(1)  # 다음 이미지 로딩 대기
+                        
+                    except:
+                        # 다음 버튼이 없으면 마지막 이미지
+                        print(f"   ✅ 마지막 가격표 이미지")
+                        break
+                        
+                except Exception as e:
+                    print(f"   ⚠️  이미지 추출 중 오류: {str(e)[:50]}")
+                    break
             
             if not price_images:
                 print("   ❌ 가격표 이미지를 찾을 수 없음")
-                print("   💡 디버깅: 페이지 소스 일부 출력")
-                try:
-                    page_text = self.driver.page_source[:2000]
-                    if '가격표' in page_text:
-                        print("      - 페이지에 '가격표' 텍스트 존재")
-                    if 'phinf.pstatic.net' in page_text:
-                        print("      - 페이지에 네이버 CDN 이미지 존재")
-                    if '업체사진' in page_text or '방문자' in page_text:
-                        print("      - ⚠️  업체 사진 페이지에 머물러 있습니다!")
-                except:
-                    pass
                 return False
             
             print(f"   ✅ {len(price_images)}개 가격표 이미지 발견")
