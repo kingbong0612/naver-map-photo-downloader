@@ -53,24 +53,39 @@ if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
 )
 echo.
 
+REM 현재 디렉토리 출력
+echo 📂 현재 작업 폴더: %CD%
+echo.
+
 REM 엑셀 파일 선택
 echo 📊 엑셀 파일을 선택하세요:
 echo.
 echo [1] 테스트_리스트.xlsx (3개 매장, 약 2분)
 echo [2] 리스트_네이버지도링크추가.xlsx (45개 매장, 약 20분)
 echo [3] 직접 입력
+echo [4] 현재 폴더의 엑셀 파일 목록 보기
 echo [Q] 종료
 echo.
 
-set /p choice="선택 (1/2/3/Q): "
+set /p choice="선택 (1/2/3/4/Q): "
 
 if /i "%choice%"=="Q" exit /b 0
 if /i "%choice%"=="q" exit /b 0
 
+if "%choice%"=="4" (
+    echo.
+    echo 📋 현재 폴더의 엑셀 파일 목록:
+    echo.
+    python -c "import os; files = [f for f in os.listdir('.') if f.endswith('.xlsx')]; print('\n'.join(f'  - {f}' for f in files) if files else '  (엑셀 파일 없음)')"
+    echo.
+    set /p excel_file="사용할 파일명을 입력하세요: "
+    goto checkfile
+)
+
 if "%choice%"=="1" (
-    set excel_file=테스트_리스트.xlsx
+    set "excel_file=테스트_리스트.xlsx"
 ) else if "%choice%"=="2" (
-    set excel_file=리스트_네이버지도링크추가.xlsx
+    set "excel_file=리스트_네이버지도링크추가.xlsx"
 ) else if "%choice%"=="3" (
     set /p excel_file="엑셀 파일명을 입력하세요: "
 ) else (
@@ -79,13 +94,19 @@ if "%choice%"=="1" (
     exit /b 1
 )
 
-REM 엑셀 파일 존재 확인
-if not exist "%excel_file%" (
+:checkfile
+REM 엑셀 파일 존재 확인 (Python으로 UTF-8 경로 처리)
+python -c "import os, sys; sys.exit(0 if os.path.exists('%excel_file%') else 1)"
+if %errorlevel% neq 0 (
     echo.
     echo ❌ 파일을 찾을 수 없습니다: %excel_file%
     echo.
-    echo 현재 폴더의 파일 목록:
-    dir /b *.xlsx
+    echo 📋 현재 폴더의 엑셀 파일 목록:
+    python -c "import os; files = [f for f in os.listdir('.') if f.endswith('.xlsx')]; print('\n'.join(f'  - {f}' for f in files) if files else '  (엑셀 파일 없음)')"
+    echo.
+    echo 💡 파일이 다른 위치에 있다면:
+    echo    1. 엑셀 파일을 이 폴더로 복사하거나
+    echo    2. 전체 경로를 입력하세요 (예: C:\Users\user\Desktop\파일.xlsx)
     echo.
     pause
     exit /b 1
