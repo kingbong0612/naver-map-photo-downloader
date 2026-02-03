@@ -106,11 +106,13 @@ class NaverPlaceCapturer:
             print(f"   🔍 검색: {search_query}")
             
             self.driver.get(search_url)
-            time.sleep(2)  # 페이지 로딩 대기
             
-            # #loc-main-section-root 요소 찾기
+            # #loc-main-section-root 요소가 나타날 때까지 명시적 대기
             try:
-                place_element = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
+                wait = WebDriverWait(self.driver, 10)  # 최대 10초 대기
+                place_element = wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root"))
+                )
                 
                 # 스크린샷 저장
                 screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
@@ -130,7 +132,7 @@ class NaverPlaceCapturer:
                     return False
                     
             except Exception as e:
-                print(f"   ❌ 플레이스 영역 찾기 실패: {e}")
+                print(f"   ❌ 플레이스 영역 찾기 실패: {str(e)[:100]}")
                 return False
                 
         except Exception as e:
