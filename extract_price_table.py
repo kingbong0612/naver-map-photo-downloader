@@ -127,6 +127,10 @@ class NaverMapPriceExtractor:
                     except:
                         continue
             
+            # 현재 URL 저장 (클릭 후 변경 확인용)
+            current_url = self.driver.current_url
+            current_page_text = self.driver.page_source[:1000]
+            
             # '가격표 이미지로 보기' 버튼 찾기 및 클릭
             price_button_found = False
             
@@ -141,7 +145,7 @@ class NaverMapPriceExtractor:
                             self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                             time.sleep(0.5)
                             self.driver.execute_script("arguments[0].click();", btn)
-                            time.sleep(3)  # 갤러리 로딩 대기 증가
+                            time.sleep(3)  # 페이지 전환 대기
                             price_button_found = True
                             break
                         except:
@@ -175,9 +179,47 @@ class NaverMapPriceExtractor:
                 self.stats['no_price'] += 1
                 return False
             
+            # 페이지 전환 확인
+            time.sleep(2)
+            new_url = self.driver.current_url
+            new_page_text = self.driver.page_source[:1000]
+            
+            # URL이 변경되었거나 페이지 내용이 크게 바뀌었는지 확인
+            url_changed = (current_url != new_url)
+            content_changed = (current_page_text != new_page_text)
+            
+            if url_changed:
+                print(f"   ✅ URL 변경 확인: 가격표 페이지로 이동")
+            elif content_changed:
+                print(f"   ✅ 페이지 내용 변경 확인")
+            else:
+                print(f"   ⚠️  페이지 전환이 감지되지 않음 - 가격표가 없을 수 있음")
+                # 그래도 계속 시도 (iframe 내부에서 변경될 수 있음)
+            
             # 가격표 이미지 페이지 로딩 대기
             print("   📋 가격표 이미지 페이지 로딩 중...")
             time.sleep(5)  # 로딩 대기 시간 증가
+            
+            # 가격표 페이지인지 확인
+            page_source = self.driver.page_source
+            
+            # 가격표 관련 키워드 확인
+            has_price_keyword = any(keyword in page_source for keyword in [
+                '가격표', 'price', '메뉴판', 'menu'
+            ])
+            
+            # 업체 사진 페이지 키워드 확인 (이러면 안됨)
+            has_photo_keyword = any(keyword in page_source for keyword in [
+                '업체사진', '방문자', '클립', '블로그'
+            ])
+            
+            if has_photo_keyword and not has_price_keyword:
+                print("   ⚠️  업체 사진 페이지에 있음 - 가격표 페이지가 아닙니다!")
+                print("   💡 가격표 버튼 클릭이 제대로 되지 않았습니다.")
+                self.stats['no_price'] += 1
+                return False
+            
+            print(f"   🔍 페이지 확인: 가격표 키워드={'있음' if has_price_keyword else '없음'}")
             
             # 스크롤하여 모든 이미지 로드
             print("   🔄 스크롤하여 이미지 로딩...")
@@ -242,6 +284,8 @@ class NaverMapPriceExtractor:
                         print("      - 페이지에 '가격표' 텍스트 존재")
                     if 'phinf.pstatic.net' in page_text:
                         print("      - 페이지에 네이버 CDN 이미지 존재")
+                    if '업체사진' in page_text or '방문자' in page_text:
+                        print("      - ⚠️  업체 사진 페이지에 머물러 있습니다!")
                 except:
                     pass
                 return False
