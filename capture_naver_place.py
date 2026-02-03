@@ -98,7 +98,7 @@ class NaverPlaceCapturer:
         return company_folder
         
     def capture_naver_place(self, region, region_detail, store_name, save_path):
-        """네이버 플레이스 캡처 - 안정적 버전"""
+        """네이버 플레이스 캡처 - 플레이스 카드만 정확히"""
         try:
             # 네이버 검색 (지역 + 지역상세 + 매장명 + 세신)
             search_query = f"{region} {region_detail} {store_name} 세신"
@@ -110,20 +110,27 @@ class NaverPlaceCapturer:
             # #loc-main-section-root 요소가 나타날 때까지 대기
             try:
                 wait = WebDriverWait(self.driver, 10)
+                
+                # 플레이스 카드 영역을 찾기 위해 더 구체적인 선택자 사용
+                # api_subject_bx는 플레이스 카드 내부에만 있음
                 place_element = wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root"))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "#loc-main-section-root .api_subject_bx"))
                 )
                 
                 # 플레이스 내용이 로드될 때까지 추가 대기
-                # 지도와 상세 정보가 표시되길 기다림
                 time.sleep(3)
                 
-                # 다시 요소 찾기 (DOM이 업데이트되었을 수 있음)
-                place_element = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
+                # 부모 요소 (#loc-main-section-root) 찾기
+                place_root = self.driver.find_element(By.CSS_SELECTOR, "#loc-main-section-root")
+                
+                # 플레이스인지 확인 (api_subject_bx 클래스 존재 여부)
+                if "api_subject_bx" not in place_root.get_attribute("innerHTML"):
+                    print(f"   ⚠️  플레이스 카드를 찾을 수 없음 (뉴스/다른 콘텐츠)")
+                    return False
                 
                 # 스크린샷 저장
                 screenshot_path = os.path.join(save_path, "네이버플레이스_캡처.png")
-                place_element.screenshot(screenshot_path)
+                place_root.screenshot(screenshot_path)
                 
                 # 파일 크기 확인
                 if os.path.exists(screenshot_path):
