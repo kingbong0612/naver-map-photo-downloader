@@ -105,12 +105,13 @@ class NaverPlaceCapturer:
             if pd.isna(region_detail) or str(region_detail).lower() == 'nan':
                 region_detail = ""
             
-            # 네이버 검색 - 여러 검색어 시도
-            search_queries = [
-                f"세신 {region} {region_detail} {store_name}".replace("  ", " ").strip(),  # 세신을 앞에
-                f"{region} {region_detail} {store_name} 세신".replace("  ", " ").strip(),  # 기본
-                f"{store_name} {region} {region_detail} 세신".replace("  ", " ").strip(),  # 매장명 우선
-            ]
+            # 네이버 검색 - 에스테틱 관련 키워드를 번갈아가며 시도
+            keywords = ["에스테틱", "피부관리", "마사지", "스파"]
+            search_queries = []
+            for kw in keywords:
+                search_queries.append(
+                    f"{store_name} {region} {region_detail} {kw}".replace("  ", " ").strip()
+                )
             
             for idx, search_query in enumerate(search_queries):
                 try:
@@ -224,7 +225,7 @@ class NaverPlaceCapturer:
                     '지역': region,
                     '지역상세': region_detail,
                     '매장명': store_name,
-                    '검색어': f"{region} {region_detail} {store_name} 세신"
+                    '검색어': f"{store_name} {region} {region_detail} 에스테틱"
                 })
                 
         except Exception as e:
