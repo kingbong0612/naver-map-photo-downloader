@@ -1,0 +1,168 @@
+============================================================
+네이버 지도 가격표 추출 실패 목록
+============================================================
+생성 날짜: 2026년 02월 12일 11:54:36
+실패 건수: 51개
+============================================================
+
+[1] 서울 > 강남구 > 끌리메 신사본점
+    네이버지도링크: https://naver.me/51349U71
+
+[2] 서울 > 강남구 > 베르메디
+    네이버지도링크: https://naver.me/Gxke4pc5
+
+[3] 서울 > 강남구 > 끌리메 삼성점
+    네이버지도링크: https://naver.me/GYC64vui
+
+[4] 서울 > 강남구 > 인디비뒤엘제네브
+    네이버지도링크: https://naver.me/GALRknhk
+
+[5] 서울 > 강남구 > 끌리메 강남사옥점
+    네이버지도링크: https://naver.me/FSwTwd64
+
+[6] 서울 > 마포구 > 노바스킨
+    네이버지도링크: https://naver.me/5eUnATy3
+
+[7] 서울 > 마포구 > 제로스킨 홍대점
+    네이버지도링크: https://naver.me/xExWmk0S
+
+[8] 서울 > 마포구 > 꿀잠연구소
+    네이버지도링크: https://naver.me/x7nQsiDr
+
+[9] 서울 > 마포구 > 돌체 파 니엔테
+    네이버지도링크: https://naver.me/5UEP8Nuq
+
+[10] 서울 > 마포구 > 아이오에스테틱
+    네이버지도링크: https://naver.me/GtUySnuB
+
+[11] 서울 > 서초구 > 르씨엘스킨케어
+    네이버지도링크: https://naver.me/F6lgGZkg
+
+[12] 서울 > 서초구 > 아덴스파
+    네이버지도링크: https://naver.me/GL8J9i1i
+
+[13] 서울 > 서초구 > 사운드바디사운드스킨 반포서래Avenue센터
+    네이버지도링크: https://naver.me/5EUZx7f1
+
+[14] 서울 > 서초구 > 들어화케어공방
+    네이버지도링크: https://naver.me/FTd4acou
+
+[15] 서울 > 서초구 > 가인미가 강남신논현점
+    네이버지도링크: https://naver.me/FV7dFgCD
+
+[16] 서울 > 서초구 > 세스티끄 교대본점
+    네이버지도링크: https://naver.me/5hul20rJ
+
+[17] 서울 > 송파구 > 세레니끄 잠실월드마크점
+    네이버지도링크: https://naver.me/GDa2H141
+
+[18] 서울 > 송파구 > 수수뷰티
+    네이버지도링크: https://naver.me/GlJbaFen
+
+[19] 서울 > 송파구 > 루아에스테틱 잠실본점
+    네이버지도링크: https://naver.me/F747DtzE
+
+[20] 서울 > 송파구 > 모니크에스테틱
+    네이버지도링크: https://naver.me/5tJdDIwU
+
+[21] 서울 > 송파구 > 오늘피부 송파점
+    네이버지도링크: https://naver.me/GBFUw0mT
+
+[22] 서울 > 용산구 > 메이브에스테틱
+    네이버지도링크: https://naver.me/GBFz9AH6
+
+[23] 서울 > 용산구 > 복이담 에스테틱
+    네이버지도링크: https://naver.me/F3TjJi2c
+
+[24] 서울 > 용산구 > 모뗀여자
+    네이버지도링크: https://naver.me/GrmavajD
+
+[25] 서울 > 용산구 > 오메르데이스파 한남본점
+    네이버지도링크: https://naver.me/GubLmHoV
+
+[26] 서울 > 용산구 > 올가드림뷰티 용산효창공원점
+    네이버지도링크: https://naver.me/GsjtUkEj
+
+[27] 서울 > 종로구 > 스킨N숲칼프
+    네이버지도링크: https://naver.me/x8tLbeqx
+
+[28] 서울 > 종로구 > 라뽀스파
+    네이버지도링크: https://naver.me/Gwpq8jkX
+
+[29] 서울 > 종로구 > 샤인에스테틱
+    네이버지도링크: https://naver.me/FlZESvjg
+
+[30] 서울 > 종로구 > 유스트 광화문점
+    네이버지도링크: https://naver.me/xyTE9Lt4
+
+[31] 서울 > 중구 > 엘레먼트스파
+    네이버지도링크: https://naver.me/xl0DifZJ
+
+[32] 서울 > 중구 > 굿모닝약손
+    네이버지도링크: https://naver.me/GG7PglAQ
+
+[33] 서울 > 중구 > 주다SPA
+    네이버지도링크: https://naver.me/GKUBfrVd
+
+[34] 서울 > 중구 > 다알리아 에스테틱
+    네이버지도링크: https://naver.me/5vctXkz3
+
+[35] 서울 > 중구 > 스와니예
+    네이버지도링크: https://naver.me/F6lTXahB
+
+[36] 서울 > 중구 > 라인에스테
+    네이버지도링크: https://naver.me/5wWp6CvM
+
+[37] 서울 > 중구 > 마리에스테틱
+    네이버지도링크: https://naver.me/x3jreXH7
+
+[38] 서울 > 중구 > 로얄스킨
+    네이버지도링크: https://naver.me/GuDmxdRA
+
+[39] 대구 > 중구 > 가꾸다 대구본점
+    네이버지도링크: https://naver.me/5oE4GHNR
+
+[40] 대구 > 중구 > 고운빛깔에스테틱 대구점
+    네이버지도링크: https://naver.me/GRuPxCeh
+
+[41] 대구 > 중구 > 노멀리즈에스테틱 대봉점
+    네이버지도링크: https://naver.me/GaliKNrg
+
+[42] 대구 > 중구 > 끌리메 대구점
+    네이버지도링크: https://naver.me/GKUJD5Hh
+
+[43] 인천 > 부평구 > 키웰 인천부평점
+    네이버지도링크: https://naver.me/FXwNrLUV
+
+[44] 인천 > 부평구 > 바얀스파 부평점
+    네이버지도링크: https://naver.me/G8sc95c8
+
+[45] 인천 > 부평구 > Re어려지다
+    네이버지도링크: https://naver.me/5D8BjZYE
+
+[46] 인천 > 부평구 > 강스뷰티
+    네이버지도링크: https://naver.me/5gFgdiU5
+
+[47] 광주 > 서구 > 온에스테틱 광주점
+    네이버지도링크: https://naver.me/GzEDAyGr
+
+[48] 광주 > 북구 > 챠크라
+    네이버지도링크: https://naver.me/IFgi7Pww
+
+[49] 광주 > 광산구 > 빛에스테틱
+    네이버지도링크: https://naver.me/xQeu7i3E
+
+[50] 대전 > 서구 > 끌리메 대전시청점
+    네이버지도링크: https://naver.me/54LbUOjA
+
+[51] 대전 > 서구 > 에스테티아 대전타임월드점
+    네이버지도링크: https://naver.me/xs3LYqxe
+
+============================================================
+💡 수동 추출 방법:
+1. 위의 네이버지도링크를 클릭
+2. '가격표 이미지로 보기' 클릭
+3. 이미지를 마우스 우클릭 → 다른 이름으로 저장
+4. downloads/지역/지역상세/매장명/업체/ 폴더에 저장
+5. 파일명: 가격표.jpg 또는 가격표.png
+============================================================
